@@ -23,7 +23,7 @@ and the generic failures. This skill has what is plugged-specific.
 | Hooks | `.githooks/pre-commit` (runs `plugged-dev check`), `.githooks/commit-msg` (denylist grep) | repo |
 | Denylist | `~/.local/share/plugged/denylist.txt` | ldf |
 | This skill | `~/.config/plugged/skills/ari-dotfile--submodule-plugged/`, linked by `/ari-dotfiles-skill-registry` | repo |
-| Build products | `.build/` (gitignored). A pending decision may move them to `$XDG_CACHE_HOME/swift/` via a shared `swift-pkg` wrapper | local |
+| Build products | `$XDG_CACHE_HOME/swift/pkg/plugged/` through the dotfiles' `swift-pkg` (`swift-cache status` lists it); `.build/` (gitignored) only on a machine without `swift-pkg` | local |
 
 ## Commands
 
@@ -32,7 +32,7 @@ and the generic failures. This skill has what is plugged-specific.
 | `plugged` / `plugged json` | one JSON object: `schemaVersion`, `generatedAt`, `host`, `ports[]`, `usb[]` (tree), `displays[]`, `power`; keys sorted |
 | `plugged text` | the same data as text: ports, USB tree (a hub's two halves merged by `containerId`), displays, power |
 | `plugged tui [--interval S] [-]` | live dashboard; `-` or a piped stdin renders one JSON document from stdin (text view when stdout is not a TTY) |
-| `plugged-dev build` | `swift build -c release` |
+| `plugged-dev build` | release build: `swift-pkg --build` into the shared Swift cache, else `swift build -c release` |
 | `plugged-dev check` | build, `json \| jq -e .`, `json \| tui -`, `text`, leak grep of tracked files, commit identity; ends in one `[OK]` line |
 
 ## Rules

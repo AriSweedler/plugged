@@ -1,8 +1,13 @@
 #!/usr/bin/env zsh
 # Builds the release binary when it is missing or older than any source, then runs it.
+# With the dotfiles' swift-pkg present the build lives in the shared Swift cache, never in
+# .build/; without it, SwiftPM's default .build/ is used.
 set -euo pipefail
 
 readonly ROOT="${${0:A}:h:h}"
+readonly SWIFT_PKG="${XDG_CONFIG_HOME:-${HOME}/.config}/bin/swift-pkg"
+[[ -x "${SWIFT_PKG}" ]] && exec "${SWIFT_PKG}" "${ROOT}" "$@"
+
 readonly BINARY="${ROOT}/.build/release/plugged"
 
 needs_build() {

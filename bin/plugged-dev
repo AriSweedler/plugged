@@ -5,6 +5,7 @@ readonly ROOT="${${0:A}:h:h}"
 # What the public repo must never contain, kept in the local tier so the detector
 # itself cannot leak. Absent on a machine without that tier: the greps are no-ops.
 readonly DENYLIST="${XDG_DATA_HOME:-${HOME}/.local/share}/plugged/denylist.txt"
+readonly SWIFT_PKG="${XDG_CONFIG_HOME:-${HOME}/.config}/bin/swift-pkg"
 readonly c_red=$'\e[31m' c_green=$'\e[32m' c_rst=$'\e[0m'
 log::info() { print -u2 -- "[INFO] $*"; }
 log::ok()   { print -u2 -- "${c_green}[OK]${c_rst} $*"; }
@@ -13,13 +14,18 @@ log::err()  { print -u2 -- "${c_red}[ERROR]${c_rst} $*"; }
 usage() {
   cat <<'USAGE'
 usage: plugged-dev <build|check>
-  build   swift build -c release
+  build   release build: swift-pkg into the shared Swift cache when present, else .build/
   check   build, validate `plugged json` with jq, round-trip it through `plugged tui -`,
           render `plugged text`, grep tracked files and the commit identity against the denylist
 USAGE
 }
 
 build() {
+  if [[ -x "${SWIFT_PKG}" ]]; then
+    log::info "swift-pkg --build"
+    "${SWIFT_PKG}" --build "${ROOT}" >/dev/null
+    return
+  fi
   log::info "swift build -c release"
   swift build -c release --package-path "${ROOT}"
 }
