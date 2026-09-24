@@ -1,0 +1,15 @@
+#!/usr/bin/env zsh
+# commit-msg: the leak grep in `plugged-dev check` covers tracked files; this covers
+# the message. Refuses a commit message matching the local tier's denylist. No-op
+# where no denylist exists (a machine without the local tier).
+set -euo pipefail
+readonly DENYLIST="${XDG_DATA_HOME:-${HOME}/.local/share}/plugged/denylist.txt"
+[[ -r "${DENYLIST}" ]] || exit 0
+readonly PATTERNS="$(mktemp)"
+trap 'rm -f "${PATTERNS}"' EXIT
+grep -vE '^#|^$' "${DENYLIST}" > "${PATTERNS}"
+if hits="$(grep -nEf "${PATTERNS}" "${1}")"; then
+  print -u2 -- "[ERROR] commit message contains a denylisted identifier:"
+  print -u2 -- "${hits}"
+  exit 1
+fi

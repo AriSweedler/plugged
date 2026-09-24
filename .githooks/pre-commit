@@ -1,0 +1,7 @@
+#!/usr/bin/env zsh
+# pre-commit: the check suite (build, json, tui round-trip, text, leak grep, identity).
+# Wired by `git config core.hooksPath .githooks`; the new-machine `plugged` step does it
+# on a fresh checkout.
+set -euo pipefail
+readonly ROOT="${${0:A}:h:h}"
+exec zsh "${ROOT}/bin/plugged-dev" check

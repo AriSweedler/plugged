@@ -1,0 +1,20 @@
+#!/usr/bin/env zsh
+# Builds the release binary when it is missing or older than any source, then runs it.
+set -euo pipefail
+
+readonly ROOT="${${0:A}:h:h}"
+readonly BINARY="${ROOT}/.build/release/plugged"
+
+needs_build() {
+  [[ -x "${BINARY}" ]] || return 0
+  local source
+  for source in "${ROOT}/Package.swift" "${ROOT}"/Sources/**/*.swift(N); do
+    [[ "${source}" -nt "${BINARY}" ]] && return 0
+  done
+  return 1
+}
+
+if needs_build; then
+  swift build -c release --package-path "${ROOT}" >&2
+fi
+exec "${BINARY}" "$@"

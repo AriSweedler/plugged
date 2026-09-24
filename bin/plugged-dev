@@ -1,0 +1,93 @@
+#!/usr/bin/env zsh
+set -euo pipefail
+
+readonly ROOT="${${0:A}:h:h}"
+# What the public repo must never contain, kept in the local tier so the detector
+# itself cannot leak. Absent on a machine without that tier: the greps are no-ops.
+readonly DENYLIST="${XDG_DATA_HOME:-${HOME}/.local/share}/plugged/denylist.txt"
+readonly c_red=$'\e[31m' c_green=$'\e[32m' c_rst=$'\e[0m'
+log::info() { print -u2 -- "[INFO] $*"; }
+log::ok()   { print -u2 -- "${c_green}[OK]${c_rst} $*"; }
+log::err()  { print -u2 -- "${c_red}[ERROR]${c_rst} $*"; }
+
+usage() {
+  cat <<'USAGE'
+usage: plugged-dev <build|check>
+  build   swift build -c release
+  check   build, validate `plugged json` with jq, round-trip it through `plugged tui -`,
+          render `plugged text`, grep tracked files and the commit identity against the denylist
+USAGE
+}
+
+build() {
+  log::info "swift build -c release"
+  swift build -c release --package-path "${ROOT}"
+}
+
+# The denylist as grep -e arguments, comment and blank lines dropped. An array, not a
+# pattern file: xargs may run grep more than once and a pipe can only be read once.
+denylist_args() {
+  local -a lines
+  lines=("${(@f)$(grep -vE '^#|^$' "${DENYLIST}")}")
+  local line
+  for line in "${lines[@]}"; do
+    [[ -n "${line}" ]] && print -r -- "-e" && print -r -- "${line}"
+  done
+}
+
+check_leaks() {
+  if [[ ! -r "${DENYLIST}" ]]; then
+    log::info "leak grep skipped: no denylist | path='${DENYLIST}'"
+    return 0
+  fi
+  local -a args
+  args=("${(@f)$(denylist_args)}")
+  (( ${#args} > 0 )) || return 0
+  local hits
+  hits="$(git -C "${ROOT}" ls-files -z | xargs -0 grep -nEI "${args[@]}" -- 2>/dev/null || true)"
+  if [[ -n "${hits}" ]]; then
+    log::err "denylisted identifiers in tracked files | denylist='${DENYLIST}'"
+    print -u2 -r -- "${hits}"
+    return 1
+  fi
+  log::info "leak grep clean"
+}
+
+check_identity() {
+  [[ -r "${DENYLIST}" ]] || return 0
+  local -a args
+  args=("${(@f)$(denylist_args)}")
+  (( ${#args} > 0 )) || return 0
+  local email
+  email="$(git -C "${ROOT}" config user.email || true)"
+  if print -r -- "${email}" | grep -qE "${args[@]}"; then
+    log::err "commit identity matches the denylist | user.email='${email}' fix='git -C ${ROOT} config user.email <personal address>'"
+    return 1
+  fi
+  log::info "commit identity ok"
+}
+
+check() {
+  if ! command -v jq >/dev/null; then
+    log::err "jq is required for check"
+    return 1
+  fi
+  build
+  log::info "plugged json | jq -e ."
+  "${ROOT}/bin/plugged" json | jq -e . >/dev/null
+  log::info "plugged json | plugged tui -"
+  "${ROOT}/bin/plugged" json | "${ROOT}/bin/plugged" tui - >/dev/null
+  log::info "plugged text"
+  "${ROOT}/bin/plugged" text
+  check_leaks
+  check_identity
+  log::ok "build, json, tui round-trip, text, leak grep and identity all passed"
+}
+
+case "${1:-}" in
+  build) build ;;
+  check) check ;;
+  -h|--help|help) usage ;;
+  "") usage >&2; exit 2 ;;
+  *) log::err "unknown command: $1"; usage >&2; exit 2 ;;
+esac
