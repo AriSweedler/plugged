@@ -53,7 +53,7 @@ and the generic failures. This skill has what is plugged-specific.
 | `.githooks/commit-msg` | every commit | denylist grep of the message | never |
 
 `core.hooksPath=.githooks` is local config; a fresh checkout has none until
-`new-machine apply plugged` sets it and builds.
+`dotfiles apply plugged` sets it and builds.
 
 ## Workflow
 
@@ -63,7 +63,7 @@ and the generic failures. This skill has what is plugged-specific.
 
 Sync a machine after `/ari-dotfiles` refreshed the checkout: `plugged-dev build`
 (or just run `plugged`; the wrapper builds when stale). Fresh machine:
-`new-machine apply plugged`.
+`dotfiles apply plugged`.
 
 ## When it fails
 
