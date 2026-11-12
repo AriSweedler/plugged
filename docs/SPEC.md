@@ -12,7 +12,10 @@ what every platform's implementation must do; `tests/` checks it.
 | `plugged --text` | collects once, prints the snapshot as text, and exits |
 | `plugged tui -`, or `plugged tui` with stdin piped | renders one snapshot read from stdin, from this or any other machine; `--width COLUMNS` draws the dashboard that wide, uncolored when stdout is not a terminal |
 
-`json`, `text` and `tui` without the dashes are the same commands.
+`json`, `text` and `tui` without the dashes are the same commands. Bad arguments, an interval
+over a day (86400) among them, print the usage and exit 2. A document on stdin that is not a
+snapshot, or whose `schemaVersion` this build does not read, is refused in one line on stderr
+with exit 1.
 
 A collection reads the kernel directly and starts no other process. Text and the dashboard are
 drawn from the snapshot alone, so `plugged json | plugged tui -` shows what `plugged tui` shows.

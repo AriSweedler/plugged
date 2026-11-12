@@ -1,6 +1,6 @@
 use super::terminal::{self, RawMode};
 use crate::collect::collect_snapshot;
-use crate::model::Snapshot;
+use crate::model::{Snapshot, SCHEMA_VERSION};
 use crate::render::{build_frame, compact, render_ansi, render_plain, render_text};
 use std::io::Read;
 use std::time::{Duration, Instant};
@@ -15,7 +15,8 @@ pub struct Options {
 /// None means the arguments were not understood.
 pub fn parse_options(arguments: &[String]) -> Option<Options> {
     let mut options = Options { interval: 2.0, from_stdin: false, width: None };
-    let seconds = |value: &str| value.parse::<f64>().ok().filter(|seconds| *seconds > 0.0 && seconds.is_finite());
+    // Up to a day: beyond what a timer can hold the value is a typo, not an interval.
+    let seconds = |value: &str| value.parse::<f64>().ok().filter(|seconds| *seconds > 0.0 && *seconds <= 86_400.0);
     let mut rest = arguments.iter();
     while let Some(argument) = rest.next() {
         match argument.as_str() {
@@ -57,7 +58,12 @@ pub fn run_tui(options: &Options) -> i32 {
 fn read_stdin() -> Result<Snapshot, String> {
     let mut input = Vec::new();
     std::io::stdin().read_to_end(&mut input).map_err(|error| error.to_string())?;
-    serde_json::from_slice(&input).map_err(|error| error.to_string())
+    let snapshot: Snapshot = serde_json::from_slice(&input).map_err(|error| error.to_string())?;
+    // A field may have changed meaning in another version, so its numbers are not drawn as this one's.
+    if snapshot.schema_version != SCHEMA_VERSION {
+        return Err(format!("schemaVersion {}, and this plugged reads {SCHEMA_VERSION}", snapshot.schema_version));
+    }
+    Ok(snapshot)
 }
 
 // One frame as ordinary lines, never the alternate screen: colored on a terminal; off one, the

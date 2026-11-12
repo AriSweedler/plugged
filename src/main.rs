@@ -9,7 +9,7 @@ use std::process::exit;
 
 const USAGE: &str = "\
 usage: plugged [--interval SECONDS] | plugged --json | plugged --text | plugged tui [--interval SECONDS] [-]
-  (no flag)  the dashboard of what is plugged in, re-collected every SECONDS (default 2);
+  (no flag)  the dashboard of what is plugged in, re-collected every SECONDS (default 2, at most 86400);
              q or Ctrl-C quits. Not on a terminal: the text view, once
   --json     one JSON object with everything plugged in, then exit (also: json)
   --text     the same data as an aligned text view, then exit (also: text)

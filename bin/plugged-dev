@@ -114,6 +114,16 @@ check_document() {
   return "${failed}"
 }
 
+# expect_exit <code> <what> <command...>: the command, its output dropped, must exit with <code>.
+expect_exit() {
+  local want="$1" what="$2" got=0
+  shift 2
+  "$@" >/dev/null 2>&1 || got=$?
+  (( got == want )) && return 0
+  log::err "wrong exit code | case='${what}' want='${want}' got='${got}'"
+  return 1
+}
+
 run_tests() {
   UPDATE="${1:-}"
   local failed=0 fixture snapshot name document
@@ -133,6 +143,11 @@ run_tests() {
     check_document "$(<"${snapshot}")" "${snapshot:h}" "${name}" "${name}" || failed=1
     log::info "snapshot checked | snapshot='${name}'"
   done
+  # Refusals: the exit code is the contract.
+  expect_exit 2 "an interval over a day" "${ROOT}/bin/plugged" --interval 1e30 || failed=1
+  expect_exit 2 "an interval of zero" "${ROOT}/bin/plugged" tui --interval 0 || failed=1
+  expect_exit 1 "a document that is not JSON" "${ROOT}/bin/plugged" tui - <<<"not json" || failed=1
+  expect_exit 1 "a document of another schemaVersion" "${ROOT}/bin/plugged" tui - < <(jq '.schemaVersion = 2' "${ROOT}/tests/snapshots/mac-charging.json") || failed=1
   [[ "${UPDATE}" == "--update" ]] && log::info "expected files rewritten; read the diff"
   return "${failed}"
 }
