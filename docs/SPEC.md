@@ -10,7 +10,7 @@ what every platform's implementation must do; `tests/` checks it.
 | `plugged [--interval SECONDS]` | the dashboard: collects and redraws every SECONDS (default 2); `q` or Ctrl-C quits. When stdin or stdout is not a terminal it prints the text view once and exits |
 | `plugged --json` | collects once, prints one snapshot as JSON, keys sorted, and exits |
 | `plugged --text` | collects once, prints the snapshot as text, and exits |
-| `plugged tui -`, or `plugged tui` with stdin piped | renders one snapshot read from stdin, from this or any other machine |
+| `plugged tui -`, or `plugged tui` with stdin piped | renders one snapshot read from stdin, from this or any other machine; `--width COLUMNS` draws the dashboard that wide, uncolored when stdout is not a terminal |
 
 `json`, `text` and `tui` without the dashes are the same commands.
 
@@ -52,8 +52,14 @@ hub, sorted by `locationId`, as the roots are).
 
 **Power**: `externalConnected`, `charging`, `fullyCharged`, `percent` (0 to 100),
 `timeRemainingMin` (optional: to empty on battery, to full while charging), `adapter` (optional:
-`watts`, `volts`, `amps`, `description`, only when the source says what it negotiated). A
-machine with no battery reports `externalConnected: true`, the other flags `false`, `percent: 0`.
+`watts`, `volts`, `amps`, `description`, only when the source says what it negotiated),
+`battery` (optional: `watts`, `volts`, `amps` flowing into the battery while `charging`, out of
+it otherwise; left out when nothing flows). A machine with no battery reports
+`externalConnected: true`, the other flags `false`, `percent: 0`.
+
+Where the power comes in is the port whose `powerIn` is `true`. The views name it beside the
+adapter, and the dashboard draws a line from that port's row to the Power panel. A platform
+that reports no ports says the port is unknown.
 
 ## Platforms
 
@@ -74,8 +80,13 @@ A new platform is a set of collectors that fills the snapshot, a branch in
   is built.
 - **Recorded machines.** Each `tests/fixtures/<name>/sys` is a sysfs tree. `PLUGGED_SYSFS_ROOT`
   points the Linux collectors at it, on any platform, and the result must pass conformance and
-  equal `expected.json` (less `generatedAt` and `host`) and, rendered, `expected.txt`. So a Mac
-  catches a Linux regression, and a change to the text view shows up as a diff.
+  equal `expected.json` (with `generatedAt` and `host` pinned) and, rendered, `expected.txt`
+  (the text view) and `expected.frame.txt` (the dashboard, 84 columns, uncolored: what
+  `plugged tui - --width 84` prints off a terminal). So a Mac catches a Linux regression, and
+  a change to either view shows up as a diff.
+- **Recorded snapshots.** Each `tests/snapshots/<name>.json` is a snapshot document, from any
+  platform, with `<name>.txt` and `<name>.frame.txt` beside it. `mac-charging` is a Mac fed
+  through one of its ports: the case that draws the power link.
 - `bin/plugged-dev test --update` rewrites the expected files; the diff is the review.
 
 A new fixture is a script like `tests/make-fixture-laptop-nixos.py`. Fixtures hold made-up

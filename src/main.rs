@@ -14,7 +14,7 @@ usage: plugged [--interval SECONDS] | plugged --json | plugged --text | plugged 
   --json     one JSON object with everything plugged in, then exit (also: json)
   --text     the same data as an aligned text view, then exit (also: text)
   tui        the dashboard; with - (or a piped stdin) it renders one JSON document from
-             stdin and exits";
+             stdin and exits; --width COLUMNS draws that frame COLUMNS wide, uncolored off a terminal";
 
 fn main() {
     let arguments: Vec<String> = std::env::args().skip(1).collect();

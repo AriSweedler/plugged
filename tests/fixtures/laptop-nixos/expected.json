@@ -17,6 +17,8 @@
       "width": 2880
     }
   ],
+  "generatedAt": "2026-01-01T00:00:00Z",
+  "host": "fixture",
   "ports": [],
   "power": {
     "charging": false,

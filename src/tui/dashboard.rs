@@ -1,24 +1,27 @@
 use super::terminal::{self, RawMode};
 use crate::collect::collect_snapshot;
 use crate::model::Snapshot;
-use crate::render::{build_frame, compact, render_ansi, render_text, truncate};
+use crate::render::{build_frame, compact, render_ansi, render_plain, render_text};
 use std::io::Read;
 use std::time::{Duration, Instant};
 
 pub struct Options {
     pub interval: f64,
     pub from_stdin: bool,
+    /// Draw the frame this wide, whatever the terminal says; off a terminal, draw it plain.
+    pub width: Option<usize>,
 }
 
 /// None means the arguments were not understood.
 pub fn parse_options(arguments: &[String]) -> Option<Options> {
-    let mut options = Options { interval: 2.0, from_stdin: false };
+    let mut options = Options { interval: 2.0, from_stdin: false, width: None };
     let seconds = |value: &str| value.parse::<f64>().ok().filter(|seconds| *seconds > 0.0 && seconds.is_finite());
     let mut rest = arguments.iter();
     while let Some(argument) = rest.next() {
         match argument.as_str() {
             "-" => options.from_stdin = true,
             "--interval" => options.interval = seconds(rest.next()?)?,
+            "--width" => options.width = Some(rest.next()?.parse::<usize>().ok().filter(|width| *width > 0)?),
             other => options.interval = seconds(other.strip_prefix("--interval=")?)?,
         }
     }
@@ -37,31 +40,35 @@ pub fn run_dashboard(options: &Options) -> i32 {
 
 pub fn run_tui(options: &Options) -> i32 {
     if options.from_stdin || !terminal::is_terminal(libc::STDIN_FILENO) {
-        return render_stdin_once();
+        return match read_stdin() {
+            Ok(snapshot) => render_once(&snapshot, "stdin", options),
+            Err(error) => {
+                eprintln!("plugged tui: stdin is not a plugged JSON document ({error})");
+                1
+            }
+        };
     }
     if !terminal::is_terminal(libc::STDOUT_FILENO) {
-        println!("{}", render_text(&collect_snapshot()));
-        return 0;
+        return render_once(&collect_snapshot(), "once", options);
     }
     run_live(options.interval)
 }
 
-fn render_stdin_once() -> i32 {
+fn read_stdin() -> Result<Snapshot, String> {
     let mut input = Vec::new();
-    let read = std::io::stdin().read_to_end(&mut input).map_err(|error| error.to_string());
-    let snapshot: Snapshot = match read.and_then(|_| serde_json::from_slice(&input).map_err(|error| error.to_string())) {
-        Ok(snapshot) => snapshot,
-        Err(error) => {
-            eprintln!("plugged tui: stdin is not a plugged JSON document ({error})");
-            return 1;
-        }
+    std::io::stdin().read_to_end(&mut input).map_err(|error| error.to_string())?;
+    serde_json::from_slice(&input).map_err(|error| error.to_string())
+}
+
+// One frame as ordinary lines, never the alternate screen: colored on a terminal; off one, the
+// text view, or with --width the frame without its colors (what tests/ compares).
+fn render_once(snapshot: &Snapshot, status: &str, options: &Options) -> i32 {
+    let on_terminal = terminal::is_terminal(libc::STDOUT_FILENO);
+    let lines: Vec<String> = match (on_terminal, options.width) {
+        (true, width) => build_frame(snapshot, status, width.unwrap_or_else(|| terminal::size().columns)).iter().map(render_ansi).collect(),
+        (false, Some(width)) => build_frame(snapshot, status, width).iter().map(render_plain).collect(),
+        (false, None) => vec![render_text(snapshot)],
     };
-    if !terminal::is_terminal(libc::STDOUT_FILENO) {
-        println!("{}", render_text(&snapshot));
-        return 0;
-    }
-    let columns = terminal::size().columns;
-    let lines: Vec<String> = build_frame(&snapshot, "stdin").iter().map(|line| render_ansi(&truncate(line, columns))).collect();
     println!("{}", lines.join("\n"));
     0
 }
@@ -85,7 +92,7 @@ fn run_live(interval: f64) -> i32 {
     let mut snapshot = collect_snapshot();
     let status = format!("every {} s  q quits", compact(interval));
     let draw = |snapshot: &Snapshot, size: &terminal::WindowSize| {
-        let lines: Vec<String> = build_frame(snapshot, &status).iter().take(size.rows).map(|line| render_ansi(&truncate(line, size.columns))).collect();
+        let lines: Vec<String> = build_frame(snapshot, &status, size.columns).iter().take(size.rows).map(render_ansi).collect();
         terminal::draw(&lines);
     };
     draw(&snapshot, &size);

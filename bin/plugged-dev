@@ -17,8 +17,9 @@ usage: plugged-dev <build|test [--update]|check>
   build   release build into $XDG_CACHE_HOME/plugged/target, with cargo from PATH or, without
           one, from nixpkgs for the length of the build; clippy's warnings fail it
   test    the spec's tests (docs/SPEC.md): this machine's `plugged json` against tests/conform.jq,
-          then every recorded machine under tests/fixtures against its expected.json and
-          expected.txt; --update rewrites the expected files from the current build
+          then every recorded machine under tests/fixtures (a sysfs tree) and every recorded
+          snapshot under tests/snapshots (a JSON document) against its expected JSON, text and
+          dashboard frame; --update rewrites the expected files from the current build
   check   build, test, validate `plugged json` with jq, round-trip it through `plugged tui -`,
           render `plugged text`, grep tracked files and the commit identity against the denylist
 USAGE
@@ -85,27 +86,54 @@ check_identity() {
   log::info "commit identity ok"
 }
 
-# A snapshot with the two fields that differ per run removed, so it compares across runs.
-stable_json() { jq -S 'del(.generatedAt, .host)'; }
+# A snapshot with the two fields that differ per run pinned, so it compares across runs.
+stable_json() { jq -S '.generatedAt = "2026-01-01T00:00:00Z" | .host = "fixture"'; }
+
+# The frame is compared this wide and uncolored.
+readonly FRAME_WIDTH=84
+
+# compare <expected file> <what it is> <name>: stdin against the file, or the file rewritten.
+compare() {
+  local expected="$1" what="$2" name="$3" actual
+  actual="$(cat)"
+  if [[ "${UPDATE}" == "--update" ]]; then
+    print -r -- "${actual}" > "${expected}"
+    return 0
+  fi
+  diff -u "${expected}" <(print -r -- "${actual}") && return 0
+  log::err "${what} differs from ${expected:t} | case='${name}'"
+  return 1
+}
+
+# One snapshot document, checked against the spec and its three expected renderings.
+check_document() {
+  local document="$1" dir="$2" stem="$3" name="$4" failed=0
+  print -r -- "${document}" | jq -e -f "${ROOT}/tests/conform.jq" >/dev/null || { log::err "json breaks the spec | case='${name}'"; failed=1; }
+  print -r -- "${document}" | "${ROOT}/bin/plugged" tui - | compare "${dir}/${stem}.txt" "text" "${name}" || failed=1
+  print -r -- "${document}" | "${ROOT}/bin/plugged" tui - --width "${FRAME_WIDTH}" | compare "${dir}/${stem}.frame.txt" "dashboard frame" "${name}" || failed=1
+  return "${failed}"
+}
 
 run_tests() {
-  local update="${1:-}" failed=0 fixture name actual
+  UPDATE="${1:-}"
+  local failed=0 fixture snapshot name document
   log::info "conform: this machine's plugged json"
   "${ROOT}/bin/plugged" json | jq -e -f "${ROOT}/tests/conform.jq" >/dev/null || { log::err "this machine's json breaks the spec | see='tests/conform.jq'"; failed=1; }
+  # Recorded machines: a sysfs tree the Linux collectors read on any platform.
   for fixture in "${ROOT}"/tests/fixtures/*(/N); do
     name="${fixture:t}"
-    actual="$(PLUGGED_SYSFS_ROOT="${fixture}/sys" "${ROOT}/bin/plugged" json)"
-    print -r -- "${actual}" | jq -e -f "${ROOT}/tests/conform.jq" >/dev/null || { log::err "fixture json breaks the spec | fixture='${name}'"; failed=1; }
-    if [[ "${update}" == "--update" ]]; then
-      print -r -- "${actual}" | stable_json > "${fixture}/expected.json"
-      print -r -- "${actual}" | "${ROOT}/bin/plugged" tui - > "${fixture}/expected.txt"
-      log::info "expected files rewritten; read the diff | fixture='${name}'"
-      continue
-    fi
-    diff -u "${fixture}/expected.json" <(print -r -- "${actual}" | stable_json) || { log::err "json differs from expected.json | fixture='${name}'"; failed=1; }
-    diff -u "${fixture}/expected.txt" <(print -r -- "${actual}" | "${ROOT}/bin/plugged" tui -) || { log::err "text differs from expected.txt | fixture='${name}'"; failed=1; }
+    document="$(PLUGGED_SYSFS_ROOT="${fixture}/sys" "${ROOT}/bin/plugged" json | stable_json)"
+    print -r -- "${document}" | compare "${fixture}/expected.json" "json" "${name}" || failed=1
+    check_document "${document}" "${fixture}" expected "${name}" || failed=1
     log::info "fixture checked | fixture='${name}'"
   done
+  # Recorded snapshots: a document from any platform, rendered here.
+  for snapshot in "${ROOT}"/tests/snapshots/*.json(N); do
+    name="${snapshot:t:r}"
+    check_document "$(<"${snapshot}")" "${snapshot:h}" "${name}" "${name}" || failed=1
+    log::info "snapshot checked | snapshot='${name}'"
+  done
+  [[ "${UPDATE}" == "--update" ]] && log::info "expected files rewritten; read the diff"
   return "${failed}"
 }
 

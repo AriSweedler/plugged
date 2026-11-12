@@ -8,6 +8,31 @@ prints the same data once and exits. What every platform must report, and how
 that is tested: [docs/SPEC.md](docs/SPEC.md).
 
 ```
+$ plugged
+ plugged  mac                                                    14:20:00  ·  stdin
+
+╭─ Ports ──────────────────────────────────────────────────────────────────────────╮
+│ USB-C 1  ●  USB2 USB3  USB3.1 Hub                                                │
+│ USB-C 2  ○                                                                       │
+│ USB-C 4  ●                         power-in 94 W ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ │
+│ HDMI 3   ○                                                                     ┃ │
+├─ Power ────────────────────────────────────────────────────────────────────────╂─┤
+│ ██████████████░░░░░░░░░░  57%  charging, 330 min to full                       ┃ │
+│ battery  61.2 W  ·  12.24 V × 5 A  ·  in                                       ┃ │
+│ adapter  94 W  ·  20 V × 4.7 A  ·  96W USB-C Power Adapter  ·  on USB-C 4 ◀━━━━┛ │
+├─ Devices ────────────────────────────────────────────────────────────────────────┤
+│ USB3.1 Hub       5 Gb/s    USB-C 1                                               │
+│ ├─ Portable SSD  10 Gb/s                                                         │
+│ └─ Keyboard      1.5 Mb/s                                                        │
+├─ Displays ───────────────────────────────────────────────────────────────────────┤
+│ Built-in Retina Display  3024x1964  120 Hz  builtin main                         │
+╰──────────────────────────────────────────────────────────────────────────────────╯
+```
+
+The port that feeds the machine is joined to the Power panel, which names the adapter's
+watts, volts and amps. Off a terminal, or with `--text`, the same data is plain text:
+
+```
 $ plugged --text
 Ports
   USB-C 1  ○  -

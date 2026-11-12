@@ -16,3 +16,4 @@ Displays
 
 Power
   battery 79%  full
+  source  external power  port unknown

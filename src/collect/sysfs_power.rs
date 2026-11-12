@@ -1,5 +1,5 @@
 use super::sysfs;
-use crate::model::{Adapter, Power};
+use crate::model::{Adapter, BatteryFlow, Power};
 
 /// class/power_supply holds the battery, the mains adapter and any USB power source, each
 /// with a `type`. A peripheral's own battery (a mouse, a phone) says scope=Device and is skipped.
@@ -30,7 +30,7 @@ pub fn collect(sys: &str) -> Power {
     }
     let Some(battery) = battery else {
         // A machine with no battery runs from the wall, whether or not it names a supply.
-        return Power { external_connected: external_connected || !saw_supply, charging: false, fully_charged: false, percent: 0, time_remaining_min: None, adapter };
+        return Power { external_connected: external_connected || !saw_supply, charging: false, fully_charged: false, percent: 0, time_remaining_min: None, adapter, battery: None };
     };
     let status = sysfs::string(&format!("{battery}/status")).unwrap_or_default();
     Power {
@@ -40,6 +40,8 @@ pub fn collect(sys: &str) -> Power {
         percent: sysfs::int(&format!("{battery}/capacity")).unwrap_or(0).clamp(0, 100),
         time_remaining_min: if status == "Discharging" { minutes_left(&battery) } else { None },
         adapter,
+        // Microvolts and microamps; some drivers sign the current, the status says which way.
+        battery: BatteryFlow::from_milli(sysfs::int(&format!("{battery}/voltage_now")).unwrap_or(0) / 1000, sysfs::int(&format!("{battery}/current_now")).unwrap_or(0) / 1000),
     }
 }
 

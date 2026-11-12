@@ -5,7 +5,7 @@ mod frame;
 mod merge;
 mod text;
 
-pub use frame::{build_frame, render_ansi, truncate};
+pub use frame::{build_frame, render_ansi, render_plain};
 pub use text::render_text;
 
 use crate::model::{Display, Port, Power, UsbDevice};
@@ -18,6 +18,12 @@ pub(crate) fn device_names(port: &Port, devices: &[UsbDevice]) -> Vec<String> {
         }
     }
     names
+}
+
+/// The port that feeds the machine: the first with a live power contract. A platform that
+/// reports no ports has none, and the views say the port is unknown.
+pub(crate) fn feeding_port(ports: &[Port]) -> Option<&Port> {
+    ports.iter().find(|port| port.power_in == Some(true))
 }
 
 pub(crate) fn power_state(p: &Power) -> String {

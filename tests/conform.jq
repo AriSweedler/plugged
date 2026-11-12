@@ -32,4 +32,6 @@ must(.schemaVersion == 1; "schemaVersion is 1")
 | must(.power | (.charging | not) or .externalConnected; "a charging battery has external power")
 | must(.power.timeRemainingMin | . == null or (is_int and . > 0); "timeRemainingMin is absent or positive")
 | must(.power.adapter | . == null or ((.watts | is_int and . > 0) and (.volts | type == "number") and (.amps | type == "number") and (.description | type == "string")); "adapter is absent or has watts, volts, amps, description")
+| must(.power.battery | . == null or ((.watts | type == "number" and . > 0) and (.volts | type == "number" and . > 0) and (.amps | type == "number" and . > 0)); "battery flow is absent or has positive watts, volts, amps")
+| must(([.ports[] | select(.powerIn == true)] | length) == 0 or .power.externalConnected; "a port that feeds the machine means external power")
 | true

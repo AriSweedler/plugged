@@ -1,0 +1,124 @@
+{
+  "displays": [
+    {
+      "builtin": true,
+      "height": 1964,
+      "hz": 120,
+      "main": true,
+      "name": "Built-in Retina Display",
+      "width": 3024
+    }
+  ],
+  "generatedAt": "2026-11-12T14:20:00-08:00",
+  "host": "mac",
+  "ports": [
+    {
+      "active": true,
+      "id": "Port-USB-C@1",
+      "kind": "usb-c",
+      "label": "USB-C 1",
+      "powerIn": false,
+      "transports": [
+        "USB2",
+        "USB3"
+      ]
+    },
+    {
+      "active": false,
+      "id": "Port-USB-C@2",
+      "kind": "usb-c",
+      "label": "USB-C 2",
+      "powerIn": false,
+      "transports": []
+    },
+    {
+      "active": true,
+      "id": "Port-USB-C@4",
+      "kind": "usb-c",
+      "label": "USB-C 4",
+      "powerIn": true,
+      "transports": []
+    },
+    {
+      "active": false,
+      "id": "Port-HDMI@3",
+      "kind": "hdmi",
+      "label": "HDMI 3",
+      "transports": []
+    }
+  ],
+  "power": {
+    "adapter": {
+      "amps": 4.7,
+      "description": "96W USB-C Power Adapter",
+      "volts": 20,
+      "watts": 94
+    },
+    "battery": {
+      "amps": 5,
+      "volts": 12.24,
+      "watts": 61.2
+    },
+    "charging": true,
+    "externalConnected": true,
+    "fullyCharged": false,
+    "percent": 57,
+    "timeRemainingMin": 330
+  },
+  "schemaVersion": 1,
+  "usb": [
+    {
+      "children": [
+        {
+          "children": [],
+          "locationId": "0x00110000",
+          "name": "Portable SSD",
+          "port": "Port-USB-C@1",
+          "productId": 22136,
+          "revision": "1.00",
+          "serial": "SN00000001",
+          "speed": 4,
+          "speedLabel": "10 Gb/s",
+          "vendor": "Example",
+          "vendorId": 4660
+        }
+      ],
+      "containerId": "00000000-0000-0000-0000-00000000c0de",
+      "locationId": "0x00100000",
+      "name": "USB3.1 Hub",
+      "port": "Port-USB-C@1",
+      "productId": 1574,
+      "revision": "6.63",
+      "speed": 3,
+      "speedLabel": "5 Gb/s",
+      "vendor": "GenesysLogic",
+      "vendorId": 1507
+    },
+    {
+      "children": [
+        {
+          "children": [],
+          "locationId": "0x00120000",
+          "name": "Keyboard",
+          "port": "Port-USB-C@1",
+          "productId": 1,
+          "revision": "1.22",
+          "speed": 0,
+          "speedLabel": "1.5 Mb/s",
+          "vendor": "Example",
+          "vendorId": 4660
+        }
+      ],
+      "containerId": "00000000-0000-0000-0000-00000000c0de",
+      "locationId": "0x00100001",
+      "name": "USB2.1 Hub",
+      "port": "Port-USB-C@1",
+      "productId": 1552,
+      "revision": "6.63",
+      "speed": 2,
+      "speedLabel": "480 Mb/s",
+      "vendor": "GenesysLogic",
+      "vendorId": 1507
+    }
+  ]
+}

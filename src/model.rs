@@ -93,6 +93,27 @@ pub struct Adapter {
     pub description: String,
 }
 
+/// What flows into the battery while it charges, or out of it otherwise.
+#[derive(Serialize, Deserialize, Clone)]
+pub struct BatteryFlow {
+    #[serde(serialize_with = "whole_as_integer")]
+    pub watts: f64,
+    #[serde(serialize_with = "whole_as_integer")]
+    pub volts: f64,
+    #[serde(serialize_with = "whole_as_integer")]
+    pub amps: f64,
+}
+
+impl BatteryFlow {
+    /// From millivolts and milliamps, rounded to what a person reads; None when nothing flows.
+    pub fn from_milli(millivolts: i64, milliamps: i64) -> Option<BatteryFlow> {
+        let round = |value: f64| (value * 100.0).round() / 100.0;
+        let volts = millivolts as f64 / 1000.0;
+        let amps = milliamps.abs() as f64 / 1000.0;
+        (millivolts > 0 && milliamps != 0).then(|| BatteryFlow { watts: (volts * amps * 10.0).round() / 10.0, volts: round(volts), amps: round(amps) })
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Power {
@@ -104,6 +125,8 @@ pub struct Power {
     pub time_remaining_min: Option<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub adapter: Option<Adapter>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub battery: Option<BatteryFlow>,
 }
 
 // 60 Hz is written 60, not 60.0, so the document reads the same from every implementation.

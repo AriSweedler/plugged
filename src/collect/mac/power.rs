@@ -1,9 +1,9 @@
 use super::ioreg::{self, Props};
-use crate::model::{Adapter, Power};
+use crate::model::{Adapter, BatteryFlow, Power};
 
 pub fn collect() -> Power {
     // A Mac with no battery runs from the wall; this is what it reports if AppleSmartBattery is absent.
-    let mut power = Power { external_connected: true, charging: false, fully_charged: false, percent: 0, time_remaining_min: None, adapter: None };
+    let mut power = Power { external_connected: true, charging: false, fully_charged: false, percent: 0, time_remaining_min: None, adapter: None, battery: None };
     ioreg::for_each_service("AppleSmartBattery", |entry| {
         let p = ioreg::properties(entry);
         power = Power {
@@ -13,6 +13,8 @@ pub fn collect() -> Power {
             percent: percent(p.int("CurrentCapacity"), p.int("MaxCapacity")),
             time_remaining_min: p.int("TimeRemaining").filter(|&minutes| minutes > 0 && minutes != 65535), // 65535: still estimating
             adapter: p.dict("AdapterDetails").and_then(adapter),
+            // Amperage is signed, negative while the battery drains; the flags say which way.
+            battery: BatteryFlow::from_milli(p.int("Voltage").unwrap_or(0), p.int("Amperage").unwrap_or(0)),
         };
     });
     power
