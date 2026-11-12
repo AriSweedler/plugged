@@ -1,5 +1,5 @@
 use super::ioreg::{self, Entry, Props};
-use crate::model::UsbDevice;
+use crate::model::{Storage, UsbDevice};
 use std::collections::HashMap;
 
 pub fn collect() -> Vec<UsbDevice> {
@@ -32,8 +32,35 @@ fn usb_device(entry: Entry, p: &Props) -> UsbDevice {
         container_id: p.string("kUSBContainerID"),
         // The top byte of locationID is the host controller's bus index; bus N sits behind built-in port N+1.
         port: format!("Port-USB-C@{}", (location >> 24) + 1),
+        storage: storage(entry),
         children: Vec::new(),
     }
+}
+
+// A disk hangs below its USB device in the service plane: the whole medium first, then its
+// partitions and, for APFS, the volumes, each a registry entry whose name is the volume's.
+fn storage(device: Entry) -> Option<Storage> {
+    const HIDDEN_ROLES: [&str; 7] = ["Preboot", "Recovery", "VM", "xART", "Hardware", "Update", "Prelogin"];
+    fn walk(entry: Entry, depth: u8, bytes: &mut Option<u64>, volumes: &mut Vec<String>) {
+        if depth == 0 {
+            return;
+        }
+        ioreg::for_each_child(entry, "IOService", |child| {
+            let p = ioreg::properties(child);
+            if bytes.is_none() && p.bool("Whole") == Some(true) {
+                *bytes = p.int("Size").map(|size| size as u64);
+            }
+            if let Some(name) = p.string("FullName") {
+                if !p.strings("Role").iter().any(|role| HIDDEN_ROLES.contains(&role.as_str())) && !volumes.contains(&name) {
+                    volumes.push(name);
+                }
+            }
+            walk(child, depth - 1, bytes, volumes);
+        });
+    }
+    let (mut bytes, mut volumes) = (None, Vec::new());
+    walk(device, 24, &mut bytes, &mut volumes);
+    bytes.filter(|bytes| *bytes > 0).map(|bytes| Storage { bytes, volumes })
 }
 
 fn speed_label(speed: i32) -> &'static str {

@@ -26,8 +26,6 @@ pub enum PortKind {
 }
 
 impl PortKind {
-    // Only a platform that reports ports names them.
-    #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
     pub fn label(self) -> &'static str {
         match self {
             PortKind::UsbC => "USB-C",
@@ -51,6 +49,13 @@ pub struct Port {
     pub power_in: Option<bool>,
 }
 
+/// What a USB device is when it is a disk: its size, and the volumes on it by name.
+#[derive(Serialize, Deserialize, Clone)]
+pub struct Storage {
+    pub bytes: u64,
+    pub volumes: Vec<String>,
+}
+
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct UsbDevice {
@@ -69,6 +74,8 @@ pub struct UsbDevice {
     pub container_id: Option<String>,
     /// The id of the Port this device hangs off, so `usb[].port == ports[].id` joins them.
     pub port: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub storage: Option<Storage>,
     pub children: Vec<UsbDevice>,
 }
 

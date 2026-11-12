@@ -79,6 +79,13 @@
           "serial": "SN00000001",
           "speed": 4,
           "speedLabel": "10 Gb/s",
+          "storage": {
+            "bytes": 1000204886016,
+            "volumes": [
+              "Backups",
+              "Scratch"
+            ]
+          },
           "vendor": "Example",
           "vendorId": 4660
         }

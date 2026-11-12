@@ -1,5 +1,5 @@
 use super::merge::merge_containers;
-use super::{compact, device_names, feeding_port, power_state, refresh, width};
+use super::{compact, detail, device_names, feeding_port, label, power_state, refresh, width};
 use crate::model::{Display, Port, Power, Snapshot, UsbDevice};
 
 pub fn render_text(s: &Snapshot) -> String {
@@ -33,7 +33,7 @@ fn usb_rows(device: &UsbDevice, ports: &[Port], depth: usize) -> Vec<Vec<String>
     } else {
         String::new()
     };
-    let mut rows = vec![vec![format!("{}{}", "  ".repeat(depth), device.name), device.speed_label.clone(), port_label]];
+    let mut rows = vec![vec![format!("{}{}", "  ".repeat(depth), label(device)), detail(device), device.speed_label.clone(), port_label]];
     rows.extend(device.children.iter().flat_map(|child| usb_rows(child, ports, depth + 1)));
     rows
 }

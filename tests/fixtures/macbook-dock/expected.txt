@@ -1,0 +1,24 @@
+Ports
+  USB-C 1  ○  -
+  USB-C 2  ○  -
+  USB-C 3  ●  -    power-in 86 W
+  USB-C 4  ●  -
+
+USB
+  05ac:1281                    Apple Inc.               480 Mb/s  bus 1
+  USB2.1 Hub                   GenesysLogic             480 Mb/s  bus 1
+    USB BillBoard                                       12 Mb/s
+    USB2734                    Microchip Tech           480 Mb/s
+      KB800 Kinesis Freestyle  KINESIS FREESTYLE KB800  1.5 Mb/s
+      4k Webcam                Generic                  480 Mb/s
+  Portable SSD                 Example · 1 TB           5 Gb/s    bus 2
+  USB3.1 Hub                   GenesysLogic             5 Gb/s    bus 6
+
+Displays
+  TEST 4K  3840x2160 @ 60 Hz
+  eDP-2  2880x1800  builtin
+
+Power
+  battery 62%  charging
+  battery 19.2 W  12.78 V x 1.5 A  in
+  adapter 86 W  20 V x 4.3 A  87W USB-C Power Adapter  on USB-C 3

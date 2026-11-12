@@ -1,5 +1,5 @@
 use super::sysfs;
-use crate::model::UsbDevice;
+use crate::model::{Storage, UsbDevice};
 use crate::render::compact;
 
 /// One directory per device under bus/usb/devices, named <bus>-<port>.<port>…; the name is
@@ -48,8 +48,27 @@ fn usb_device(dir: &str) -> UsbDevice {
         // USB 3 hub's two halves stay two devices here.
         container_id: None,
         port: format!("bus {bus}"),
+        storage: storage(dir),
         children: Vec::new(),
     }
+}
+
+// A USB disk shows up as a block device somewhere under one of the device's interfaces
+// (<bus>-<port>:<config>.<interface>/host…/block/sdX), with its size in 512-byte sectors.
+// sysfs has no volume names: those are the file systems' own.
+fn storage(dir: &str) -> Option<Storage> {
+    fn block_size(dir: &str, depth: u8) -> Option<u64> {
+        if let Some(disk) = sysfs::entries(&format!("{dir}/block")).first() {
+            return sysfs::int(&format!("{dir}/block/{disk}/size")).map(|sectors| sectors as u64 * 512);
+        }
+        if depth == 0 {
+            return None;
+        }
+        sysfs::entries(dir).iter().filter(|name| name.starts_with("host") || name.starts_with("target") || name.contains(':')).find_map(|name| block_size(&format!("{dir}/{name}"), depth - 1))
+    }
+    let interfaces = sysfs::entries(dir).into_iter().filter(|name| name.contains(':'));
+    let bytes = interfaces.into_iter().find_map(|interface| block_size(&format!("{dir}/{interface}"), 6)).filter(|bytes| *bytes > 0)?;
+    Some(Storage { bytes, volumes: Vec::new() })
 }
 
 // The codes macOS reports as Device Speed, so `speed` compares across machines.

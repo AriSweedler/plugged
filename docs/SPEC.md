@@ -47,8 +47,13 @@ the machine, `false` when it could and does not, `null` when it cannot).
 hex digits: the bus in the top byte, then one digit per hub port down to the device), `containerId`
 (optional; the two halves of a USB 3 hub share it, and text and the dashboard fold them into
 one), `port` (for a device at the root of the tree, the `id` of the port it hangs off when the
-platform reports ports, else the bus it is on, `bus 1`), `children` (the devices behind this
-hub, sorted by `locationId`, as the roots are).
+platform can tell, else the bus it is on, `bus 1`), `storage` (optional, a disk: `bytes`, and
+`volumes`, the names of the volumes on it, `[]` when the platform cannot name them), `children`
+(the devices behind this hub, sorted by `locationId`, as the roots are).
+
+The views call a disk by its volumes when it has any, since an enclosure's own product string
+is as plain as "External", and put what the device says it is (maker, product, size) beside
+that.
 
 **Display**: `name`, `width` and `height` of the mode in use or, failing that, the native mode,
 `hz` (`0` unknown), `builtin`, `main` (`false` on a platform with no main display; at most one).
@@ -69,7 +74,8 @@ that reports no ports says the port is unknown.
 | platform | reads | cannot know |
 |---|---|---|
 | macOS | the IORegistry (IOKit) and AppKit's screens | |
-| Linux | sysfs: `bus/usb/devices`, `class/power_supply`, `class/drm` | `ports` (always `[]`), `containerId`, `main`; `adapter` unless a supply publishes its contract |
+| Linux | sysfs: `bus/usb/devices`, `class/power_supply`, `class/drm` | `ports`, `containerId`, `main`, a disk's `volumes`; `adapter` unless a supply publishes its contract |
+| Linux on an Intel Mac | the above, and the SMC through applesmc's `key_at_index` files when the machine lets the user write the index (root only by default) | as Linux, except: `ports` are known for power only (`active` means a source is on the port, `transports` is empty), with the port in use and the `adapter` it negotiated |
 
 A new platform is a set of collectors that fills the snapshot, a branch in
 `src/collect/mod.rs`, a row here, and tests.
@@ -92,5 +98,5 @@ A new platform is a set of collectors that fills the snapshot, a branch in
   through one of its ports: the case that draws the power link.
 - `bin/plugged-dev test --update` rewrites the expected files; the diff is the review.
 
-A new fixture is a script like `tests/make-fixture-laptop-nixos.py`. Fixtures hold made-up
+A new fixture is a script like `tests/make-fixtures.py`. Fixtures hold made-up
 serials and EDIDs, never a real machine's.

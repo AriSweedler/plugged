@@ -2,7 +2,7 @@
 //! can be drawn across panel borders, then emitted as ANSI (or plain, for tests and pipes).
 
 use super::merge::merge_containers;
-use super::{compact, device_names, feeding_port, power_state, refresh};
+use super::{compact, detail, device_names, feeding_port, label, power_state, refresh};
 use crate::model::{Display, Port, Power, Snapshot, UsbDevice};
 
 #[derive(Clone, Copy, PartialEq, Default)]
@@ -303,7 +303,7 @@ fn device_rows(devices: &[UsbDevice], ports: &[Port]) -> Vec<Row> {
     let mut rows: Vec<Vec<Row>> = Vec::new();
     for device in devices {
         let port_label = ports.iter().find(|port| port.id == device.port).map_or(device.port.clone(), |port| port.label.clone());
-        rows.push(vec![cells(&device.name, BOLD), speed_cells(device), cells(&port_label, DIM)]);
+        rows.push(vec![cells(&label(device), BOLD), cells(&detail(device), DIM), speed_cells(device), cells(&port_label, DIM)]);
         branch(&device.children, "", &mut rows);
     }
     table(rows)
@@ -314,7 +314,7 @@ fn branch(children: &[UsbDevice], prefix: &str, rows: &mut Vec<Vec<Row>>) {
     for (index, child) in children.iter().enumerate() {
         let last = index == children.len() - 1;
         let twig = if last { "\u{2514}\u{2500} " } else { "\u{251C}\u{2500} " };
-        rows.push(vec![join(vec![cells(&format!("{prefix}{twig}"), DIM), cells(&child.name, PLAIN)]), speed_cells(child), Vec::new()]);
+        rows.push(vec![join(vec![cells(&format!("{prefix}{twig}"), DIM), cells(&label(child), PLAIN)]), cells(&detail(child), DIM), speed_cells(child), Vec::new()]);
         branch(&child.children, &format!("{prefix}{}", if last { "   " } else { "\u{2502}  " }), rows);
     }
 }

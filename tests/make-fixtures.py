@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
-"""Writes tests/fixtures/laptop-nixos/sys: a sysfs tree shaped like a 2017 MacBook Pro under
-NixOS on mains, with a dock, a keyboard and a 4K monitor. Serials and EDIDs are made up.
+"""Writes the recorded machines under tests/fixtures/<name>/sys: sysfs trees shaped like a 2017
+MacBook Pro under NixOS. Serials and EDIDs are made up.
+
+  laptop-nixos   on mains, a dock's hub, a keyboard, a 4K monitor; its SMC cannot be read
+  macbook-dock   the same, fed through a dock on two ports, with a USB disk; its SMC can be read,
+                 so the ports, the port in use and the adapter are known
+
 Run it again after editing; then `bin/plugged-dev test --update` rewrites the expected files."""
 import pathlib, shutil, struct
 
-ROOT = pathlib.Path(__file__).parent / "fixtures" / "laptop-nixos" / "sys"
+FIXTURES = pathlib.Path(__file__).parent / "fixtures"
+ROOT = FIXTURES / "laptop-nixos" / "sys"
 
 
 def put(directory: str, **attributes: str) -> None:
@@ -49,3 +55,25 @@ put(f"{drm}/card2-DP-3", status="connected", enabled="enabled", modes="3840x2160
 put(f"{drm}/card2-eDP-2", status="connected", enabled="enabled", modes="2880x1800")  # no EDID: the modes file answers
 put(f"{drm}/card2-DP-1", status="disconnected", enabled="disabled")
 put(f"{drm}/card2", dev="226:2")  # the card itself: not a connector
+
+# The second machine: the first, then what differs.
+DOCK = FIXTURES / "macbook-dock" / "sys"
+shutil.rmtree(DOCK, ignore_errors=True)
+shutil.copytree(ROOT, DOCK)
+ROOT = DOCK
+
+put(f"{supply}/BAT0", status="Charging", capacity="62", current_now="1500000")
+# A disk: a block device under the USB device's interface, sized in 512-byte sectors (1 TB).
+put(f"{usb}/2-1", idVendor="1234", idProduct="5678", bcdDevice="0100", speed="5000", busnum="2", devpath="1", manufacturer="Example", product="Portable SSD", serial="SN00000002")
+put(f"{usb}/2-1/2-1:1.0/host2/target2:0:0/2:0:0:0/block/sda", size="1953525168")
+
+# The SMC's keys as raw bytes, where a real machine has the driver's key_at_index files: four
+# ports, a 20 V x 4.3 A contract on ports 3 and 4 (a dock on two ports), port 3 in use.
+keys = ROOT / "devices/platform/applesmc.768/keys"
+keys.mkdir(parents=True)
+smc = {"AC-N": bytes([4]), "AC-W": bytes([3]), "D3in": b"87W USB-C Power Adapter".ljust(32, b"\0")}
+for port, (millivolts, milliamps) in {1: (0, 0), 2: (0, 0), 3: (20000, 4300), 4: (20000, 4250)}.items():
+    smc[f"D{port}VR"] = struct.pack(">H", millivolts)
+    smc[f"D{port}IR"] = struct.pack(">H", milliamps)
+for name, data in smc.items():
+    (keys / name).write_bytes(data)

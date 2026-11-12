@@ -4,7 +4,9 @@
 mod mac;
 mod sysfs;
 mod sysfs_displays;
+mod sysfs_ports;
 mod sysfs_power;
+mod sysfs_smc;
 mod sysfs_usb;
 
 use crate::model::{Snapshot, SCHEMA_VERSION};
@@ -18,16 +20,15 @@ pub fn collect_snapshot() -> Snapshot {
         return mac::collect(timestamp(), host_name());
     }
     let sys = recorded.unwrap_or_else(|| "/sys".to_string());
+    let smc = sysfs_smc::Smc::open(&sys);
     Snapshot {
         schema_version: SCHEMA_VERSION,
         generated_at: timestamp(),
         host: host_name(),
-        // The kernel's typec class is the only per-port view sysfs has, and a machine whose port
-        // controller has no driver for it (an Intel Mac) publishes nothing: no port is reported.
-        ports: Vec::new(),
+        ports: sysfs_ports::collect(smc.as_ref()),
         usb: sysfs_usb::collect(&sys),
         displays: sysfs_displays::collect(&sys),
-        power: sysfs_power::collect(&sys),
+        power: sysfs_power::collect(&sys, smc.as_ref()),
     }
 }
 

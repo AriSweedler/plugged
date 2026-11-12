@@ -1,9 +1,10 @@
 use super::sysfs;
+use super::sysfs_smc::Smc;
 use crate::model::{Adapter, BatteryFlow, Power};
 
 /// class/power_supply holds the battery, the mains adapter and any USB power source, each
 /// with a `type`. A peripheral's own battery (a mouse, a phone) says scope=Device and is skipped.
-pub fn collect(sys: &str) -> Power {
+pub fn collect(sys: &str, smc: Option<&Smc>) -> Power {
     let root = format!("{sys}/class/power_supply");
     let mut battery: Option<String> = None;
     let mut external_connected = false;
@@ -28,6 +29,8 @@ pub fn collect(sys: &str) -> Power {
             None => {}
         }
     }
+    // What the SMC says was negotiated is the adapter, whatever the plain supplies left unsaid.
+    let adapter = smc.and_then(smc_adapter).or(adapter);
     let Some(battery) = battery else {
         // A machine with no battery runs from the wall, whether or not it names a supply.
         return Power { external_connected: external_connected || !saw_supply, charging: false, fully_charged: false, percent: 0, time_remaining_min: None, adapter, battery: None };
@@ -52,6 +55,14 @@ fn minutes_left(battery: &str) -> Option<i64> {
         let rate = sysfs::int(&format!("{battery}/{rate}"))?;
         (rate > 0 && stored * 60 / rate > 0).then(|| stored * 60 / rate)
     })
+}
+
+fn smc_adapter(smc: &Smc) -> Option<Adapter> {
+    let (_, contracts) = smc.contracts();
+    let contract = smc.feeding(&contracts)?;
+    let volts = contract.millivolts as f64 / 1000.0;
+    let amps = contract.milliamps as f64 / 1000.0;
+    Some(Adapter { watts: (volts * amps).round() as i64, volts, amps, description: smc.string(&format!("D{}in", contract.port)).unwrap_or_default() })
 }
 
 // Only a source that publishes its contract (a USB-PD port's supply) has watts to report; a

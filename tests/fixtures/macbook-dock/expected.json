@@ -1,0 +1,181 @@
+{
+  "displays": [
+    {
+      "builtin": false,
+      "height": 2160,
+      "hz": 60,
+      "main": false,
+      "name": "TEST 4K",
+      "width": 3840
+    },
+    {
+      "builtin": true,
+      "height": 1800,
+      "hz": 0,
+      "main": false,
+      "name": "eDP-2",
+      "width": 2880
+    }
+  ],
+  "generatedAt": "2026-01-01T00:00:00Z",
+  "host": "fixture",
+  "ports": [
+    {
+      "active": false,
+      "id": "Port-USB-C@1",
+      "kind": "usb-c",
+      "label": "USB-C 1",
+      "powerIn": false,
+      "transports": []
+    },
+    {
+      "active": false,
+      "id": "Port-USB-C@2",
+      "kind": "usb-c",
+      "label": "USB-C 2",
+      "powerIn": false,
+      "transports": []
+    },
+    {
+      "active": true,
+      "id": "Port-USB-C@3",
+      "kind": "usb-c",
+      "label": "USB-C 3",
+      "powerIn": true,
+      "transports": []
+    },
+    {
+      "active": true,
+      "id": "Port-USB-C@4",
+      "kind": "usb-c",
+      "label": "USB-C 4",
+      "powerIn": false,
+      "transports": []
+    }
+  ],
+  "power": {
+    "adapter": {
+      "amps": 4.3,
+      "description": "87W USB-C Power Adapter",
+      "volts": 20,
+      "watts": 86
+    },
+    "battery": {
+      "amps": 1.5,
+      "volts": 12.78,
+      "watts": 19.2
+    },
+    "charging": true,
+    "externalConnected": true,
+    "fullyCharged": false,
+    "percent": 62
+  },
+  "schemaVersion": 1,
+  "usb": [
+    {
+      "children": [],
+      "locationId": "0x01300000",
+      "name": "05ac:1281",
+      "port": "bus 1",
+      "productId": 4737,
+      "revision": "0.00",
+      "speed": 2,
+      "speedLabel": "480 Mb/s",
+      "vendor": "Apple Inc.",
+      "vendorId": 1452
+    },
+    {
+      "children": [
+        {
+          "children": [],
+          "locationId": "0x01710000",
+          "name": "USB BillBoard",
+          "port": "bus 1",
+          "productId": 33621,
+          "revision": "1.12",
+          "serial": "SN00000000",
+          "speed": 1,
+          "speedLabel": "12 Mb/s",
+          "vendor": "BillBoard",
+          "vendorId": 10522
+        },
+        {
+          "children": [
+            {
+              "children": [],
+              "locationId": "0x01742000",
+              "name": "KB800 Kinesis Freestyle",
+              "port": "bus 1",
+              "productId": 37904,
+              "revision": "1.22",
+              "speed": 0,
+              "speedLabel": "1.5 Mb/s",
+              "vendor": "KINESIS FREESTYLE KB800",
+              "vendorId": 1423
+            },
+            {
+              "children": [],
+              "locationId": "0x01743000",
+              "name": "4k Webcam",
+              "port": "bus 1",
+              "productId": 12341,
+              "revision": "0.01",
+              "serial": "200901010001",
+              "speed": 2,
+              "speedLabel": "480 Mb/s",
+              "vendor": "Generic",
+              "vendorId": 3034
+            }
+          ],
+          "locationId": "0x01740000",
+          "name": "USB2734",
+          "port": "bus 1",
+          "productId": 10036,
+          "revision": "1.27",
+          "speed": 2,
+          "speedLabel": "480 Mb/s",
+          "vendor": "Microchip Tech",
+          "vendorId": 1060
+        }
+      ],
+      "locationId": "0x01700000",
+      "name": "USB2.1 Hub",
+      "port": "bus 1",
+      "productId": 1552,
+      "revision": "6.63",
+      "speed": 2,
+      "speedLabel": "480 Mb/s",
+      "vendor": "GenesysLogic",
+      "vendorId": 1507
+    },
+    {
+      "children": [],
+      "locationId": "0x02100000",
+      "name": "Portable SSD",
+      "port": "bus 2",
+      "productId": 22136,
+      "revision": "1.00",
+      "serial": "SN00000002",
+      "speed": 3,
+      "speedLabel": "5 Gb/s",
+      "storage": {
+        "bytes": 1000204886016,
+        "volumes": []
+      },
+      "vendor": "Example",
+      "vendorId": 4660
+    },
+    {
+      "children": [],
+      "locationId": "0x06200000",
+      "name": "USB3.1 Hub",
+      "port": "bus 6",
+      "productId": 1574,
+      "revision": "6.63",
+      "speed": 3,
+      "speedLabel": "5 Gb/s",
+      "vendor": "GenesysLogic",
+      "vendorId": 1507
+    }
+  ]
+}

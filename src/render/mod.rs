@@ -13,11 +13,49 @@ use crate::model::{Display, Port, Power, UsbDevice};
 pub(crate) fn device_names(port: &Port, devices: &[UsbDevice]) -> Vec<String> {
     let mut names: Vec<String> = Vec::new();
     for device in devices.iter().filter(|device| device.port == port.id) {
-        if !names.contains(&device.name) {
-            names.push(device.name.clone());
+        let name = label(device);
+        if !names.contains(&name) {
+            names.push(name);
         }
     }
     names
+}
+
+/// What a person calls the device: a disk goes by its volumes, since an enclosure's own
+/// product string is as plain as "External"; anything else by its product name.
+pub(crate) fn label(device: &UsbDevice) -> String {
+    match &device.storage {
+        Some(storage) if !storage.volumes.is_empty() => storage.volumes.join(", "),
+        _ => device.name.clone(),
+    }
+}
+
+/// What the device says it is, beside its label: maker, product when the label is not it, size.
+pub(crate) fn detail(device: &UsbDevice) -> String {
+    let mut parts: Vec<String> = Vec::new();
+    let named_by_volumes = label(device) != device.name;
+    if !device.vendor.is_empty() && !device.name.to_lowercase().contains(&device.vendor.to_lowercase()) && !device.vendor.to_lowercase().contains(&device.name.to_lowercase()) {
+        parts.push(if named_by_volumes { format!("{} {}", device.vendor, device.name) } else { device.vendor.clone() });
+    } else if named_by_volumes {
+        parts.push(device.name.clone());
+    }
+    if let Some(storage) = &device.storage {
+        parts.push(size(storage.bytes));
+    }
+    parts.join(" \u{00B7} ")
+}
+
+/// Bytes in the decimal units a disk is sold in: 2 TB, 500 GB, 64 GB.
+pub(crate) fn size(bytes: u64) -> String {
+    let units = ["B", "kB", "MB", "GB", "TB", "PB"];
+    let mut value = bytes as f64;
+    let mut unit = 0;
+    while value >= 999.5 && unit < units.len() - 1 {
+        value /= 1000.0;
+        unit += 1;
+    }
+    let rounded = if value >= 100.0 { value.round() } else if value >= 10.0 { (value * 10.0).round() / 10.0 } else { (value * 100.0).round() / 100.0 };
+    format!("{} {}", compact(rounded), units[unit])
 }
 
 /// The port that feeds the machine: the first with a live power contract. A platform that

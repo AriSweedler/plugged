@@ -5,9 +5,9 @@ Ports
   HDMI 3   ○  -
 
 USB
-  USB3.1 Hub      5 Gb/s    USB-C 1
-    Portable SSD  10 Gb/s
-    Keyboard      1.5 Mb/s
+  USB3.1 Hub          GenesysLogic                 5 Gb/s    USB-C 1
+    Backups, Scratch  Example Portable SSD · 1 TB  10 Gb/s
+    Keyboard          Example                      1.5 Mb/s
 
 Displays
   Built-in Retina Display  3024x1964 @ 120 Hz  builtin main
