@@ -1,0 +1,82 @@
+# plugged: the spec
+
+`plugged` is one command that shows what is plugged into the machine it runs on. This file is
+what every platform's implementation must do; `tests/` checks it.
+
+## Commands
+
+| command | does |
+|---|---|
+| `plugged [--interval SECONDS]` | the dashboard: collects and redraws every SECONDS (default 2); `q` or Ctrl-C quits. When stdin or stdout is not a terminal it prints the text view once and exits |
+| `plugged --json` | collects once, prints one snapshot as JSON, keys sorted, and exits |
+| `plugged --text` | collects once, prints the snapshot as text, and exits |
+| `plugged tui -`, or `plugged tui` with stdin piped | renders one snapshot read from stdin, from this or any other machine |
+
+`json`, `text` and `tui` without the dashes are the same commands.
+
+A collection reads the kernel directly and starts no other process. Text and the dashboard are
+drawn from the snapshot alone, so `plugged json | plugged tui -` shows what `plugged tui` shows.
+
+## The snapshot
+
+One object. A field a platform cannot know takes the value its **Unknown** column names; it is
+never guessed and never left out, except the fields marked optional.
+
+| field | meaning | Unknown |
+|---|---|---|
+| `schemaVersion` | `1`. Raised when a field changes meaning or goes away; a new field does not raise it | |
+| `generatedAt` | when it was collected, ISO 8601 with the zone | |
+| `host` | the machine's hostname | `""` |
+| `ports[]` | the machine's own sockets, in the order they are numbered | `[]` |
+| `usb[]` | the devices on the USB buses, as a tree; host controllers and root hubs are not devices | `[]` |
+| `displays[]` | the displays that are showing a picture | `[]` |
+| `power` | the machine's battery and what feeds it | see below |
+
+**Port**: `id` (unique), `kind` (`usb-c`, `hdmi`), `label` (what a person calls it, `USB-C 1`),
+`active` (something is connected), `transports` (what runs over the cable now: `USB2`, `USB3`,
+`DisplayPort`, `CIO`), `displayPortLinkRate` (optional), `powerIn` (`true` while the port feeds
+the machine, `false` when it could and does not, `null` when it cannot).
+
+**USB device**: `name` (the product string; `vvvv:pppp` in hex when it has none), `vendor`
+(`""` when it has none), `vendorId`, `productId`, `revision` (`major.minor`), `serial`
+(optional), `speed` (`0` 1.5 Mb/s, `1` 12 Mb/s, `2` 480 Mb/s, `3` 5 Gb/s, `4` 10 Gb/s,
+`5` 20 Gb/s, `-1` unknown), `speedLabel` (the same for a person), `locationId` (`0x` and eight
+hex digits: the bus in the top byte, then one digit per hub port down to the device), `containerId`
+(optional; the two halves of a USB 3 hub share it, and text and the dashboard fold them into
+one), `port` (for a device at the root of the tree, the `id` of the port it hangs off when the
+platform reports ports, else the bus it is on, `bus 1`), `children` (the devices behind this
+hub, sorted by `locationId`, as the roots are).
+
+**Display**: `name`, `width` and `height` of the mode in use or, failing that, the native mode,
+`hz` (`0` unknown), `builtin`, `main` (`false` on a platform with no main display; at most one).
+
+**Power**: `externalConnected`, `charging`, `fullyCharged`, `percent` (0 to 100),
+`timeRemainingMin` (optional: to empty on battery, to full while charging), `adapter` (optional:
+`watts`, `volts`, `amps`, `description`, only when the source says what it negotiated). A
+machine with no battery reports `externalConnected: true`, the other flags `false`, `percent: 0`.
+
+## Platforms
+
+| platform | reads | cannot know |
+|---|---|---|
+| macOS | the IORegistry (IOKit) and AppKit's screens | |
+| Linux | sysfs: `bus/usb/devices`, `class/power_supply`, `class/drm` | `ports` (always `[]`), `containerId`, `main`; `adapter` unless a supply publishes its contract |
+
+A new platform is a set of collectors that fills the snapshot, a branch in
+`src/collect/mod.rs`, a row here, and tests.
+
+## Tests
+
+`bin/plugged-dev test`, which `check` and the pre-commit hook run:
+
+- **Conformance.** `tests/conform.jq` holds the rules above that a program can check. The
+  snapshot of the machine the tests run on must pass it, so each platform is checked where it
+  is built.
+- **Recorded machines.** Each `tests/fixtures/<name>/sys` is a sysfs tree. `PLUGGED_SYSFS_ROOT`
+  points the Linux collectors at it, on any platform, and the result must pass conformance and
+  equal `expected.json` (less `generatedAt` and `host`) and, rendered, `expected.txt`. So a Mac
+  catches a Linux regression, and a change to the text view shows up as a diff.
+- `bin/plugged-dev test --update` rewrites the expected files; the diff is the review.
+
+A new fixture is a script like `tests/make-fixture-laptop-nixos.py`. Fixtures hold made-up
+serials and EDIDs, never a real machine's.

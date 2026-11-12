@@ -1,0 +1,118 @@
+{
+  "displays": [
+    {
+      "builtin": false,
+      "height": 2160,
+      "hz": 60,
+      "main": false,
+      "name": "TEST 4K",
+      "width": 3840
+    },
+    {
+      "builtin": true,
+      "height": 1800,
+      "hz": 0,
+      "main": false,
+      "name": "eDP-2",
+      "width": 2880
+    }
+  ],
+  "ports": [],
+  "power": {
+    "charging": false,
+    "externalConnected": true,
+    "fullyCharged": true,
+    "percent": 79
+  },
+  "schemaVersion": 1,
+  "usb": [
+    {
+      "children": [],
+      "locationId": "0x01300000",
+      "name": "05ac:1281",
+      "port": "bus 1",
+      "productId": 4737,
+      "revision": "0.00",
+      "speed": 2,
+      "speedLabel": "480 Mb/s",
+      "vendor": "Apple Inc.",
+      "vendorId": 1452
+    },
+    {
+      "children": [
+        {
+          "children": [],
+          "locationId": "0x01710000",
+          "name": "USB BillBoard",
+          "port": "bus 1",
+          "productId": 33621,
+          "revision": "1.12",
+          "serial": "SN00000000",
+          "speed": 1,
+          "speedLabel": "12 Mb/s",
+          "vendor": "BillBoard",
+          "vendorId": 10522
+        },
+        {
+          "children": [
+            {
+              "children": [],
+              "locationId": "0x01742000",
+              "name": "KB800 Kinesis Freestyle",
+              "port": "bus 1",
+              "productId": 37904,
+              "revision": "1.22",
+              "speed": 0,
+              "speedLabel": "1.5 Mb/s",
+              "vendor": "KINESIS FREESTYLE KB800",
+              "vendorId": 1423
+            },
+            {
+              "children": [],
+              "locationId": "0x01743000",
+              "name": "4k Webcam",
+              "port": "bus 1",
+              "productId": 12341,
+              "revision": "0.01",
+              "serial": "200901010001",
+              "speed": 2,
+              "speedLabel": "480 Mb/s",
+              "vendor": "Generic",
+              "vendorId": 3034
+            }
+          ],
+          "locationId": "0x01740000",
+          "name": "USB2734",
+          "port": "bus 1",
+          "productId": 10036,
+          "revision": "1.27",
+          "speed": 2,
+          "speedLabel": "480 Mb/s",
+          "vendor": "Microchip Tech",
+          "vendorId": 1060
+        }
+      ],
+      "locationId": "0x01700000",
+      "name": "USB2.1 Hub",
+      "port": "bus 1",
+      "productId": 1552,
+      "revision": "6.63",
+      "speed": 2,
+      "speedLabel": "480 Mb/s",
+      "vendor": "GenesysLogic",
+      "vendorId": 1507
+    },
+    {
+      "children": [],
+      "locationId": "0x06200000",
+      "name": "USB3.1 Hub",
+      "port": "bus 6",
+      "productId": 1574,
+      "revision": "6.63",
+      "speed": 3,
+      "speedLabel": "5 Gb/s",
+      "vendor": "GenesysLogic",
+      "vendorId": 1507
+    }
+  ]
+}

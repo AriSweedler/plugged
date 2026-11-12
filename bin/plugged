@@ -1,25 +1,22 @@
 #!/usr/bin/env zsh
-# Builds the release binary when it is missing or older than any source, then runs it.
-# With the dotfiles' swift-pkg present the build lives in the shared Swift cache, never in
-# .build/; without it, SwiftPM's default .build/ is used.
+# Builds the release binary when it is missing or older than any source, then runs it: the
+# working tree, uncommitted edits included. The build lives under $XDG_CACHE_HOME/plugged, never
+# in the checkout.
 set -euo pipefail
 
 readonly ROOT="${${0:A}:h:h}"
-readonly SWIFT_PKG="${XDG_CONFIG_HOME:-${HOME}/.config}/bin/swift-pkg"
-[[ -x "${SWIFT_PKG}" ]] && exec "${SWIFT_PKG}" "${ROOT}" "$@"
-
-readonly BINARY="${ROOT}/.build/release/plugged"
+readonly BINARY="${XDG_CACHE_HOME:-${HOME}/.cache}/plugged/target/release/plugged"
 
 needs_build() {
   [[ -x "${BINARY}" ]] || return 0
   local source
-  for source in "${ROOT}/Package.swift" "${ROOT}"/Sources/**/*.swift(N); do
+  for source in "${ROOT}/Cargo.toml" "${ROOT}/Cargo.lock" "${ROOT}"/src/**/*.rs(N); do
     [[ "${source}" -nt "${BINARY}" ]] && return 0
   done
   return 1
 }
 
 if needs_build; then
-  swift build -c release --package-path "${ROOT}" >&2
+  zsh "${ROOT}/bin/plugged-dev" build >&2
 fi
 exec "${BINARY}" "$@"

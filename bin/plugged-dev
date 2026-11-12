@@ -5,7 +5,7 @@ readonly ROOT="${${0:A}:h:h}"
 # What the public repo must never contain, kept in the local tier so the detector
 # itself cannot leak. Absent on a machine without that tier: the greps are no-ops.
 readonly DENYLIST="${XDG_DATA_HOME:-${HOME}/.local/share}/plugged/denylist.txt"
-readonly SWIFT_PKG="${XDG_CONFIG_HOME:-${HOME}/.config}/bin/swift-pkg"
+readonly TARGET="${XDG_CACHE_HOME:-${HOME}/.cache}/plugged/target"
 readonly c_red=$'\e[31m' c_green=$'\e[32m' c_rst=$'\e[0m'
 log::info() { print -u2 -- "[INFO] $*"; }
 log::ok()   { print -u2 -- "${c_green}[OK]${c_rst} $*"; }
@@ -13,21 +13,33 @@ log::err()  { print -u2 -- "${c_red}[ERROR]${c_rst} $*"; }
 
 usage() {
   cat <<'USAGE'
-usage: plugged-dev <build|check>
-  build   release build: swift-pkg into the shared Swift cache when present, else .build/
-  check   build, validate `plugged json` with jq, round-trip it through `plugged tui -`,
+usage: plugged-dev <build|test [--update]|check>
+  build   release build into $XDG_CACHE_HOME/plugged/target, with cargo from PATH or, without
+          one, from nixpkgs for the length of the build; clippy's warnings fail it
+  test    the spec's tests (docs/SPEC.md): this machine's `plugged json` against tests/conform.jq,
+          then every recorded machine under tests/fixtures against its expected.json and
+          expected.txt; --update rewrites the expected files from the current build
+  check   build, test, validate `plugged json` with jq, round-trip it through `plugged tui -`,
           render `plugged text`, grep tracked files and the commit identity against the denylist
 USAGE
 }
 
-build() {
-  if [[ -x "${SWIFT_PKG}" ]]; then
-    log::info "swift-pkg --build"
-    "${SWIFT_PKG}" --build "${ROOT}" >/dev/null
-    return
+# cargo from PATH, else the one nixpkgs has, fetched for this run and installed nowhere.
+cargo_run() {
+  if command -v cargo >/dev/null; then
+    cargo "$@"
+  elif command -v nix >/dev/null; then
+    nix shell nixpkgs#cargo nixpkgs#rustc nixpkgs#clippy --command cargo "$@"
+  else
+    log::err "no cargo on PATH and no nix to fetch one"
+    return 1
   fi
-  log::info "swift build -c release"
-  swift build -c release --package-path "${ROOT}"
+}
+
+build() {
+  log::info "cargo clippy, cargo build --release | target='${TARGET}'"
+  cargo_run clippy --quiet --release --manifest-path "${ROOT}/Cargo.toml" --target-dir "${TARGET}" -- -D warnings
+  cargo_run build --quiet --release --locked --manifest-path "${ROOT}/Cargo.toml" --target-dir "${TARGET}"
 }
 
 # The denylist as grep -e arguments, comment and blank lines dropped. An array, not a
@@ -73,6 +85,30 @@ check_identity() {
   log::info "commit identity ok"
 }
 
+# A snapshot with the two fields that differ per run removed, so it compares across runs.
+stable_json() { jq -S 'del(.generatedAt, .host)'; }
+
+run_tests() {
+  local update="${1:-}" failed=0 fixture name actual
+  log::info "conform: this machine's plugged json"
+  "${ROOT}/bin/plugged" json | jq -e -f "${ROOT}/tests/conform.jq" >/dev/null || { log::err "this machine's json breaks the spec | see='tests/conform.jq'"; failed=1; }
+  for fixture in "${ROOT}"/tests/fixtures/*(/N); do
+    name="${fixture:t}"
+    actual="$(PLUGGED_SYSFS_ROOT="${fixture}/sys" "${ROOT}/bin/plugged" json)"
+    print -r -- "${actual}" | jq -e -f "${ROOT}/tests/conform.jq" >/dev/null || { log::err "fixture json breaks the spec | fixture='${name}'"; failed=1; }
+    if [[ "${update}" == "--update" ]]; then
+      print -r -- "${actual}" | stable_json > "${fixture}/expected.json"
+      print -r -- "${actual}" | "${ROOT}/bin/plugged" tui - > "${fixture}/expected.txt"
+      log::info "expected files rewritten; read the diff | fixture='${name}'"
+      continue
+    fi
+    diff -u "${fixture}/expected.json" <(print -r -- "${actual}" | stable_json) || { log::err "json differs from expected.json | fixture='${name}'"; failed=1; }
+    diff -u "${fixture}/expected.txt" <(print -r -- "${actual}" | "${ROOT}/bin/plugged" tui -) || { log::err "text differs from expected.txt | fixture='${name}'"; failed=1; }
+    log::info "fixture checked | fixture='${name}'"
+  done
+  return "${failed}"
+}
+
 check() {
   if ! command -v jq >/dev/null; then
     log::err "jq is required for check"
@@ -85,13 +121,15 @@ check() {
   "${ROOT}/bin/plugged" json | "${ROOT}/bin/plugged" tui - >/dev/null
   log::info "plugged text"
   "${ROOT}/bin/plugged" text
+  run_tests
   check_leaks
   check_identity
-  log::ok "build, json, tui round-trip, text, leak grep and identity all passed"
+  log::ok "build, json, tui round-trip, text, spec tests, leak grep and identity all passed"
 }
 
 case "${1:-}" in
   build) build ;;
+  test) build; run_tests "${2:-}" && log::ok "spec tests passed" ;;
   check) check ;;
   -h|--help|help) usage ;;
   "") usage >&2; exit 2 ;;

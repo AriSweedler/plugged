@@ -1,12 +1,14 @@
 # plugged
 
-What is plugged into this Mac, in one call: the USB-C and HDMI ports, the USB
-device tree, the displays, and power. It reads the IORegistry directly through
-IOKit and the display list through AppKit. No subprocesses, no `system_profiler`,
-no parsing of `ioreg` output. The same binary renders a live dashboard.
+A dashboard of what is plugged into this machine: the USB-C and HDMI ports, the
+USB device tree, the displays, and power. On a Mac it reads the IORegistry
+through IOKit and the display list through AppKit; on Linux it reads sysfs. No
+subprocesses, no `system_profiler`, no parsing of `ioreg` output. `plugged --json`
+prints the same data once and exits. What every platform must report, and how
+that is tested: [docs/SPEC.md](docs/SPEC.md).
 
 ```
-$ plugged text
+$ plugged --text
 Ports
   USB-C 1  ○  -
   USB-C 2  ●  USB2                   YubiKey FIDO+CCID
@@ -34,27 +36,27 @@ Power
 
 | command | does |
 |---|---|
-| `plugged` or `plugged json` | one JSON object with everything, for dashboards and scripts |
-| `plugged text` | the same data as the aligned text view above |
-| `plugged tui [--interval SECONDS]` | live dashboard, re-collected every 2 s by default; `q` or Ctrl-C quits |
+| `plugged [--interval SECONDS]` | live dashboard, re-collected every 2 s by default; `q` or Ctrl-C quits; off a terminal, the text view once |
+| `plugged --json` | one JSON object with everything, then exit; for scripts |
+| `plugged --text` | the same data as the aligned text view above, then exit |
 | `plugged tui -` | render one JSON document from stdin once and exit; a piped stdin implies `-` |
 
-`plugged json | plugged tui -` draws one colored frame when stdout is a
+`plugged --json | plugged tui -` draws one colored frame when stdout is a
 terminal and prints the text view when it is not, so the dashboard can be fed
 from a file or another machine. A collection takes well under 100 ms.
 
 ## Build
 
-Needs Xcode's Swift toolchain (Swift 6, macOS 14 or later) and, for
-`plugged-dev check`, `jq`.
+Rust, with three crates: `libc`, `serde`, `serde_json`. Needs `cargo` on `PATH`, or Nix,
+from which `plugged-dev` borrows one for the build; and, for `plugged-dev check`, `jq`.
 
 ```
-bin/plugged text        # builds on first run, and whenever a source is newer than the binary
-bin/plugged-dev check   # build, jq-validate the JSON, round-trip it through `tui -`, render text, end with [OK]
+bin/plugged --text      # builds on first run, and whenever a source is newer than the binary
+bin/plugged-dev check   # build, jq-validate the JSON, round-trip it through `tui -`, render text, run the spec's tests, end with [OK]
 ```
 
 Put `bin/plugged` on your `PATH` or symlink it there. Nothing is installed
-anywhere else; the binary lives in `.build/release/`.
+anywhere else; the binary lives in `$XDG_CACHE_HOME/plugged/target/release/`.
 
 ## The dashboard
 
@@ -100,36 +102,46 @@ faster half and pool their children.
 
 ## Where the data comes from
 
-| subsystem | IOKit source |
+On a Mac:
+
+| subsystem | source |
 |---|---|
 | ports | `IOPort` entries, their `IOPortTransportState*` children for the active DisplayPort link rate, and the `Power In` feature's power-source children for the live contract |
 | usb | `IOUSBHostDevice` entries; parent links in the `IOUSB` plane form the tree; `kUSBContainerID` is the container id; the top byte of `locationID` is the host-controller bus, and bus N sits behind built-in port N+1 |
 | displays | `NSScreen.screens`, `CGDisplayCopyDisplayMode`, `CGDisplayIsBuiltin`, `CGDisplayIsMain` |
 | power | `AppleSmartBattery`; adapter watts are volts x amps when the controller reports no `Watts` |
 
+On Linux, under `/sys`:
+
+| subsystem | source |
+|---|---|
+| ports | none: `ports` is empty |
+| usb | `bus/usb/devices/<bus>-<port>.<port>…`; the name is the tree; root hubs and interfaces are left out |
+| displays | `class/drm/card*-*` that are connected and enabled; the name, size and refresh rate come from the EDID, the size from `modes` without one |
+| power | `class/power_supply`: the first `Battery` that is not a peripheral's, and any other supply that is `online` |
+
 ## Layout
 
 ```
-Package.swift
-Sources/plugged/
-  main.swift            argument handling and output
-  IOKitHelpers.swift    thin wrappers over the IOKit C calls
-  Model.swift           the Codable structs behind the JSON
-  Collect/              one file per subsystem, one entry function each
-    Snapshot.swift      collectSnapshot(), which calls the four below
-    USB.swift           collectUSB()
-    TypeC.swift         collectPorts()
-    Power.swift         collectPower()
-    Displays.swift      collectDisplays()
-  Render/
-    Merge.swift         mergeContainers(_:), folds a hub's two halves
-    Text.swift          renderText(_:), the plain view
-    Frame.swift         buildFrame(_:status:), the styled view as spans, plus truncate and ANSI output
-  TUI/
-    Terminal.swift      window size, raw mode, alternate screen, the signal pipe
-    Dashboard.swift     `tui` argument parsing, the stdin one-shot, the live loop
+Cargo.toml, Cargo.lock
+src/
+  main.rs               argument handling and output
+  model.rs              the snapshot's structs, which are the JSON
+  collect/
+    mod.rs              collect_snapshot(): picks the platform's collectors
+    mac/                macOS: ioreg.rs (the IOKit and CoreFoundation calls), ports.rs, usb.rs, power.rs, displays.rs
+    sysfs*.rs           Linux: sysfs.rs (file readers), sysfs_usb.rs, sysfs_power.rs, sysfs_displays.rs
+  render/
+    merge.rs            merge_containers(), folds a hub's two halves
+    text.rs             render_text(), the plain view
+    frame.rs            build_frame(), the styled view as spans, plus truncate and ANSI output
+  tui/
+    terminal.rs         window size, raw mode, alternate screen, the signal pipe
+    dashboard.rs        argument parsing, the stdin one-shot, the live loop
+docs/SPEC.md            what every platform must report
+tests/                  conform.jq (the spec's rules), fixtures/ (recorded machines and their expected output)
 bin/plugged             build if stale, then run
-bin/plugged-dev         build | check
+bin/plugged-dev         build | test | check
 ```
 
 ## License

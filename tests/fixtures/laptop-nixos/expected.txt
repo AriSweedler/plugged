@@ -1,0 +1,18 @@
+Ports
+  (none)
+
+USB
+  05ac:1281                    480 Mb/s  bus 1
+  USB2.1 Hub                   480 Mb/s  bus 1
+    USB BillBoard              12 Mb/s
+    USB2734                    480 Mb/s
+      KB800 Kinesis Freestyle  1.5 Mb/s
+      4k Webcam                480 Mb/s
+  USB3.1 Hub                   5 Gb/s    bus 6
+
+Displays
+  TEST 4K  3840x2160 @ 60 Hz
+  eDP-2  2880x1800  builtin
+
+Power
+  battery 79%  full
