@@ -2,9 +2,11 @@
 """Writes the recorded machines under tests/fixtures/<name>/sys: sysfs trees shaped like a 2017
 MacBook Pro under NixOS. Serials and EDIDs are made up.
 
-  laptop-nixos   on mains, a dock's hub, a keyboard, a 4K monitor; its SMC cannot be read
-  macbook-dock   the same, fed through a dock on two ports, with a USB disk; its SMC can be read,
-                 so the ports, the port in use and the adapter are known
+  laptop-nixos   on mains, a dock's hub, a keyboard, a 4K monitor, Wi-Fi up and a built-in
+                 Ethernet port with no cable in it; its SMC cannot be read
+  macbook-dock   the same, fed through a dock on two ports, with a USB disk and the dock's
+                 Ethernet adapter carrying the network; its SMC can be read, so the ports, the
+                 port in use and the adapter are known
 
 Run it again after editing; then `bin/plugged-dev test --update` rewrites the expected files."""
 import pathlib, shutil, struct
@@ -44,6 +46,16 @@ put(f"{usb}/1-7.1", idVendor="291a", idProduct="8355", bcdDevice="0112", speed="
 put(f"{usb}/1-3", idVendor="05ac", idProduct="1281", bcdDevice="0000", speed="480", busnum="1", devpath="3", manufacturer="Apple Inc.")  # no product string
 put(f"{usb}/6-2", idVendor="05e3", idProduct="0626", bcdDevice="0663", speed="5000", busnum="6", devpath="2", manufacturer="GenesysLogic", product="USB3.1 Hub")
 
+# class/net, where a real tree links every interface to the device behind it. Only an interface
+# with hardware under it has that link, and the fixture stands it up as a file: the collector
+# asks whether it is there, nothing more. The virtual ones below have none, and are skipped.
+net = "class/net"
+put(f"{net}/enp0s31f6", device="", type="1", carrier="0", speed="-1", operstate="down", address="00:11:22:33:44:55")
+put(f"{net}/wlp2s0", device="", phy80211="", type="1", carrier="1", speed="", operstate="up", address="00:11:22:33:44:56")
+put(f"{net}/lo", type="772", carrier="1", operstate="unknown", address="00:00:00:00:00:00")
+put(f"{net}/docker0", type="1", carrier="0", speed="-1", operstate="down", address="02:42:1a:2b:3c:4d")
+put(f"{net}/veth1a2b3c4", type="1", carrier="1", speed="10000", operstate="up", address="02:42:1a:2b:3c:4e")
+
 supply = "class/power_supply"
 put(f"{supply}/ADP1", type="Mains", online="1")
 put(f"{supply}/BAT0", type="Battery", status="Full", capacity="79", voltage_now="12780000", current_now="0", charge_now="5244000", charge_full="5377000")
@@ -66,6 +78,12 @@ put(f"{supply}/BAT0", status="Charging", capacity="62", current_now="1500000")
 # A disk: a block device under the USB device's interface, sized in 512-byte sectors (1 TB).
 put(f"{usb}/2-1", idVendor="1234", idProduct="5678", bcdDevice="0100", speed="5000", busnum="2", devpath="1", manufacturer="Example", product="Portable SSD", serial="SN00000002")
 put(f"{usb}/2-1/2-1:1.0/host2/target2:0:0/2:0:0:0/block/sda", size="1953525168")
+
+# The dock's Ethernet adapter, on the USB 3 hub: its interface publishes a net device, the way
+# the disk above publishes a block device, which is how an interface is tied to what it rides on.
+put(f"{usb}/6-2.1", idVendor="0bda", idProduct="8153", bcdDevice="3000", speed="5000", busnum="6", devpath="2.1", manufacturer="Realtek", product="USB 10/100/1000 LAN", serial="SN00000003")
+put(f"{usb}/6-2.1/6-2.1:1.0/net/enp6s0u2u1", ifindex="5")
+put(f"{net}/enp6s0u2u1", device="", type="1", carrier="1", speed="1000", operstate="up", address="00:11:22:33:44:57")
 
 # The SMC's keys as raw bytes, where a real machine has the driver's key_at_index files: four
 # ports, a 20 V x 4.3 A contract on ports 3 and 4 (a dock on two ports), port 3 in use.

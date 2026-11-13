@@ -2,8 +2,8 @@
 //! can be drawn across panel borders, then emitted as ANSI (or plain, for tests and pipes).
 
 use super::merge::merge_containers;
-use super::{compact, detail, device_names, feeding_port, label, power_state, refresh};
-use crate::model::{Display, Port, Power, Snapshot, UsbDevice};
+use super::{carried_interfaces, carrier_name, compact, detail, device_names, feeding_port, label, link_rate, linked_interface, power_state, refresh};
+use crate::model::{Display, Interface, Port, Power, Snapshot, UsbDevice};
 
 #[derive(Clone, Copy, PartialEq, Default)]
 pub struct Style {
@@ -30,6 +30,8 @@ const fn strong(color: u8) -> Style {
 }
 // Power is yellow everywhere: the port it comes in on, the link, and the panel it lands in.
 const POWER: Style = strong(YELLOW);
+// The network is blue the same way: the device it comes in on, the link, and its panel.
+const NETWORK: Style = strong(BLUE);
 
 impl Style {
     // The 16 named colors only, so the terminal's own palette decides what they look like.
@@ -104,6 +106,15 @@ struct Panel {
     rows: Vec<Row>,
 }
 
+/// A line drawn across the panels: out of one panel's row, down the gutter's rail, and into
+/// another's. Both links run down the one rail, and the panel order keeps them apart: the
+/// power link spans Ports to Power, above the network link's Devices to Network.
+struct Link {
+    from: (usize, usize),
+    to: (usize, usize),
+    style: Style,
+}
+
 const WIDEST: usize = 96;
 const NARROWEST: usize = 48;
 
@@ -113,19 +124,34 @@ pub fn build_frame(s: &Snapshot, status: &str, columns: usize) -> Vec<Row> {
     let feeding = feeding_port(&s.ports);
 
     let mut panels: Vec<Panel> = Vec::new();
-    // Where the power link starts and ends: (panel, row) of the port fed and of the source line.
-    let mut link: Option<((usize, usize), (usize, usize))> = None;
+    let mut links: Vec<Link> = Vec::new();
     if !s.ports.is_empty() {
         panels.push(Panel { title: "Ports", rows: port_rows(&s.ports, &devices, &s.power) });
     }
     let (power, source_row) = power_rows(&s.power, feeding);
+    let power_panel = panels.len();
+    panels.push(Panel { title: "Power", rows: power });
+    // The power link: out of the row of the port that feeds the machine, into the source line.
     if let (Some(port), Some(source_row)) = (feeding, source_row) {
         if let Some(port_row) = s.ports.iter().position(|candidate| candidate.id == port.id) {
-            link = Some(((0, port_row), (panels.len(), source_row)));
+            links.push(Link { from: (0, port_row), to: (power_panel, source_row), style: POWER });
         }
     }
-    panels.push(Panel { title: "Power", rows: power });
-    panels.push(Panel { title: "Devices", rows: if devices.is_empty() { none() } else { device_rows(&devices, &s.ports) } });
+    let (rows, locations) = device_rows(&devices, &s.ports, &s.network);
+    let devices_panel = panels.len();
+    panels.push(Panel { title: "Devices", rows: if devices.is_empty() { none() } else { rows } });
+    // The network link: out of the row of the device the network comes in on, into its interface.
+    if !s.network.is_empty() {
+        let network_panel = panels.len();
+        panels.push(Panel { title: "Network", rows: network_rows(&s.network, &devices) });
+        if let Some(interface) = linked_interface(&s.network) {
+            let device_row = interface.usb_location_id.as_deref().and_then(|location| locations.iter().position(|carried| carried == location));
+            let interface_row = s.network.iter().position(|candidate| candidate.name == interface.name);
+            if let (Some(device_row), Some(interface_row)) = (device_row, interface_row) {
+                links.push(Link { from: (devices_panel, device_row), to: (network_panel, interface_row), style: NETWORK });
+            }
+        }
+    }
     panels.push(Panel { title: "Displays", rows: if s.displays.is_empty() { none() } else { display_rows(&s.displays) } });
 
     let mut frame = vec![header(s, status, w), Vec::new()];
@@ -136,8 +162,8 @@ pub fn build_frame(s: &Snapshot, status: &str, columns: usize) -> Vec<Row> {
         frame.extend(panel.rows.iter().map(|row| boxed(row.clone(), w)));
     }
     frame.push(border('\u{2570}', '\u{256F}', None, w));
-    if let Some(((from_panel, from_row), (to_panel, to_row))) = link {
-        draw_link(&mut frame, placed[from_panel][from_row], placed[to_panel][to_row], w);
+    for link in &links {
+        draw_link(&mut frame, placed[link.from.0][link.from.1], placed[link.to.0][link.to.1], w, link.style);
     }
     if columns < w { frame.iter().map(|row| truncate(row, columns)).collect() } else { frame }
 }
@@ -177,29 +203,35 @@ fn boxed(content: Row, w: usize) -> Row {
     join(vec![cells("\u{2502} ", DIM), fit(content, w - 6), cells("   ", PLAIN), cells("\u{2502}", DIM)])
 }
 
-// The link: out of the fed port's row to the rail, down the rail through whatever lies between,
-// and back in to the Power panel's source line.
-fn draw_link(frame: &mut [Row], from: usize, to: usize, w: usize) {
+// Out of the row it leaves to its rail, down the rail through whatever lies between, and back in
+// to the row it feeds: ━ across, ┃ down, ╂ where it crosses a panel border, ╋ another link.
+fn draw_link(frame: &mut [Row], from: usize, to: usize, w: usize, style: Style) {
     let rail = w - 3;
-    let put = |row: &mut Row, x: usize, ch: char| row[x] = Cell { ch, style: POWER };
-    let content_end = |row: &Row| (2..w - 4).rev().find(|&x| row[x].ch != ' ').unwrap_or(1);
+    let content_end = |row: &Row| (2..rail).rev().find(|&x| row[x].ch != ' ').unwrap_or(1);
+    let put = |frame: &mut [Row], row: usize, x: usize, ch: char| {
+        let joined = match (frame[row][x].ch, ch) {
+            ('\u{2500}', '\u{2503}') => '\u{2542}',
+            ('\u{2501}', '\u{2503}') | ('\u{2503}' | '\u{2542}' | '\u{254B}', '\u{2501}') => '\u{254B}',
+            _ => ch,
+        };
+        frame[row][x] = Cell { ch: joined, style };
+    };
     let start = content_end(&frame[from]) + 2;
     for x in start..rail {
-        put(&mut frame[from], x, '\u{2501}');
+        put(frame, from, x, '\u{2501}');
     }
-    put(&mut frame[from], rail, '\u{2513}');
-    for row in frame.iter_mut().take(to).skip(from + 1) {
-        let crossing = row[rail].ch == '\u{2500}';
-        put(row, rail, if crossing { '\u{2542}' } else { '\u{2503}' });
+    put(frame, from, rail, '\u{2513}');
+    for row in from + 1..to {
+        put(frame, row, rail, '\u{2503}');
     }
     let start = content_end(&frame[to]) + 2;
     if start < rail {
-        put(&mut frame[to], start, '\u{25C0}');
+        put(frame, to, start, '\u{25C0}');
     }
     for x in start + 1..rail {
-        put(&mut frame[to], x, '\u{2501}');
+        put(frame, to, x, '\u{2501}');
     }
-    put(&mut frame[to], rail, '\u{251B}');
+    put(frame, to, rail, '\u{251B}');
 }
 
 // Pads every column but the last to the widest cell in it, two blanks between columns.
@@ -299,23 +331,51 @@ fn power_rows(p: &Power, feeding: Option<&Port>) -> (Vec<Row>, Option<usize>) {
     (rows, source_row)
 }
 
-fn device_rows(devices: &[UsbDevice], ports: &[Port]) -> Vec<Row> {
+/// The Devices panel's rows, and the locationId of the device each row is: where a link out of
+/// this panel starts. A row that carries a network interface names it, as a fed port says so.
+fn device_rows(devices: &[UsbDevice], ports: &[Port], network: &[Interface]) -> (Vec<Row>, Vec<String>) {
     let mut rows: Vec<Vec<Row>> = Vec::new();
+    let mut locations: Vec<String> = Vec::new();
     for device in devices {
         let port_label = ports.iter().find(|port| port.id == device.port).map_or(device.port.clone(), |port| port.label.clone());
-        rows.push(vec![cells(&label(device), BOLD), cells(&detail(device), DIM), speed_cells(device), cells(&port_label, DIM)]);
-        branch(&device.children, "", &mut rows);
+        rows.push(vec![cells(&label(device), BOLD), cells(&detail(device), DIM), speed_cells(device), cells(&port_label, DIM), carried_cells(device, network)]);
+        locations.push(device.location_id.clone());
+        branch(&device.children, "", network, &mut rows, &mut locations);
     }
-    table(rows)
+    (table(rows), locations)
+}
+
+fn carried_cells(device: &UsbDevice, network: &[Interface]) -> Row {
+    cells(&carried_interfaces(device, network).join(", "), NETWORK)
+}
+
+// The Network panel: one row per interface, each naming the device it rides on, where it has one.
+fn network_rows(network: &[Interface], devices: &[UsbDevice]) -> Vec<Row> {
+    table(
+        network
+            .iter()
+            .map(|interface| {
+                let on = carrier_name(interface, devices);
+                vec![
+                    cells(interface.kind.label(), NETWORK),
+                    cells(&interface.name, if interface.connected { BOLD } else { PLAIN }),
+                    if interface.connected { cells("\u{25CF}", fg(GREEN)) } else { cells("\u{25CB}", DIM) },
+                    cells(&link_rate(interface.speed_mbps), BOLD),
+                    cells(&if on.is_empty() { String::new() } else { format!("on {on}") }, NETWORK),
+                ]
+            })
+            .collect(),
+    )
 }
 
 // A hub's devices hang off it: ├─ for each but the last, └─ for the last, │ carried down.
-fn branch(children: &[UsbDevice], prefix: &str, rows: &mut Vec<Vec<Row>>) {
+fn branch(children: &[UsbDevice], prefix: &str, network: &[Interface], rows: &mut Vec<Vec<Row>>, locations: &mut Vec<String>) {
     for (index, child) in children.iter().enumerate() {
         let last = index == children.len() - 1;
         let twig = if last { "\u{2514}\u{2500} " } else { "\u{251C}\u{2500} " };
-        rows.push(vec![join(vec![cells(&format!("{prefix}{twig}"), DIM), cells(&label(child), PLAIN)]), cells(&detail(child), DIM), speed_cells(child), Vec::new()]);
-        branch(&child.children, &format!("{prefix}{}", if last { "   " } else { "\u{2502}  " }), rows);
+        rows.push(vec![join(vec![cells(&format!("{prefix}{twig}"), DIM), cells(&label(child), PLAIN)]), cells(&detail(child), DIM), speed_cells(child), Vec::new(), carried_cells(child, network)]);
+        locations.push(child.location_id.clone());
+        branch(&child.children, &format!("{prefix}{}", if last { "   " } else { "\u{2502}  " }), network, rows, locations);
     }
 }
 

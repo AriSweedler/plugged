@@ -19,6 +19,20 @@
   ],
   "generatedAt": "2026-01-01T00:00:00Z",
   "host": "fixture",
+  "network": [
+    {
+      "connected": false,
+      "kind": "ethernet",
+      "name": "enp0s31f6",
+      "speedMbps": 0
+    },
+    {
+      "connected": true,
+      "kind": "wi-fi",
+      "name": "wlp2s0",
+      "speedMbps": 0
+    }
+  ],
   "ports": [],
   "power": {
     "charging": false,

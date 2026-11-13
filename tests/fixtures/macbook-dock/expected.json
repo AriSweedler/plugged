@@ -19,6 +19,27 @@
   ],
   "generatedAt": "2026-01-01T00:00:00Z",
   "host": "fixture",
+  "network": [
+    {
+      "connected": false,
+      "kind": "ethernet",
+      "name": "enp0s31f6",
+      "speedMbps": 0
+    },
+    {
+      "connected": true,
+      "kind": "ethernet",
+      "name": "enp6s0u2u1",
+      "speedMbps": 1000,
+      "usbLocationId": "0x06210000"
+    },
+    {
+      "connected": true,
+      "kind": "wi-fi",
+      "name": "wlp2s0",
+      "speedMbps": 0
+    }
+  ],
   "ports": [
     {
       "active": false,
@@ -166,7 +187,21 @@
       "vendorId": 4660
     },
     {
-      "children": [],
+      "children": [
+        {
+          "children": [],
+          "locationId": "0x06210000",
+          "name": "USB 10/100/1000 LAN",
+          "port": "bus 6",
+          "productId": 33107,
+          "revision": "30.00",
+          "serial": "SN00000003",
+          "speed": 3,
+          "speedLabel": "5 Gb/s",
+          "vendor": "Realtek",
+          "vendorId": 3034
+        }
+      ],
       "locationId": "0x06200000",
       "name": "USB3.1 Hub",
       "port": "bus 6",

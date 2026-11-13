@@ -33,6 +33,7 @@ never guessed and never left out, except the fields marked optional.
 | `ports[]` | the machine's own sockets, in the order they are numbered | `[]` |
 | `usb[]` | the devices on the USB buses, as a tree; host controllers and root hubs are not devices | `[]` |
 | `displays[]` | the displays that are showing a picture | `[]` |
+| `network[]` | the network interfaces the machine has in hardware, sorted by `name` | `[]` |
 | `power` | the machine's battery and what feeds it | see below |
 
 **Port**: `id` (unique), `kind` (`usb-c`, `hdmi`), `label` (what a person calls it, `USB-C 1`),
@@ -55,6 +56,14 @@ The views call a disk by its volumes when it has any, since an enclosure's own p
 is as plain as "External", and put what the device says it is (maker, product, size) beside
 that.
 
+**Interface**: `name` (what the kernel calls it, `enp125s0u1`), `kind` (`ethernet`, `wi-fi`,
+`other`), `connected` (a cable is in and the link is up, or the radio is associated),
+`speedMbps` (the rate the link negotiated, `0` unknown), `usbLocationId` (optional: the
+`locationId` of the USB device the interface lives on, so `network[].usbLocationId ==
+usb[].locationId` joins them). A virtual interface is not one of these: the loopback, a bridge,
+a container's veth and a tunnel are left out, and what is left is what a cable can go into. A
+document written before `network` existed reads as `[]`, so it keeps `schemaVersion` 1.
+
 **Display**: `name`, `width` and `height` of the mode in use or, failing that, the native mode,
 `hz` (`0` unknown), `builtin`, `main` (`false` on a platform with no main display; at most one).
 
@@ -69,12 +78,17 @@ Where the power comes in is the port whose `powerIn` is `true`. The views name i
 adapter, and the dashboard draws a line from that port's row to the Power panel. A platform
 that reports no ports says the port is unknown.
 
+Where the network comes in is the first interface with a live link that rides a USB device. The
+views name that device beside the interface and the interface beside the device, and the
+dashboard draws a second line, from the device's row to the Network panel. Both lines run down
+the same rail in the frame's gutter: power yellow, network blue.
+
 ## Platforms
 
 | platform | reads | cannot know |
 |---|---|---|
-| macOS | the IORegistry (IOKit) and AppKit's screens | |
-| Linux | sysfs: `bus/usb/devices`, `class/power_supply`, `class/drm` | `ports`, `containerId`, `main`, a disk's `volumes`; `adapter` unless a supply publishes its contract |
+| macOS | the IORegistry (IOKit) and AppKit's screens | `network`, until the registry's interface side is read |
+| Linux | sysfs: `bus/usb/devices`, `class/power_supply`, `class/drm`, `class/net` | `ports`, `containerId`, `main`, a disk's `volumes`; `adapter` unless a supply publishes its contract |
 | Linux on an Intel Mac | the above, and the SMC through applesmc's `key_at_index` files when the machine lets the user write the index (root only by default) | as Linux, except: `ports` are known for power only (`active` means a source is on the port, `transports` is empty), with the port in use and the `adapter` it negotiated |
 
 A new platform is a set of collectors that fills the snapshot, a branch in

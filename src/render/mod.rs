@@ -8,7 +8,7 @@ mod text;
 pub use frame::{build_frame, render_ansi, render_plain};
 pub use text::render_text;
 
-use crate::model::{Display, Port, Power, UsbDevice};
+use crate::model::{Display, Interface, Port, Power, UsbDevice};
 
 pub(crate) fn device_names(port: &Port, devices: &[UsbDevice]) -> Vec<String> {
     let mut names: Vec<String> = Vec::new();
@@ -62,6 +62,37 @@ pub(crate) fn size(bytes: u64) -> String {
 /// reports no ports has none, and the views say the port is unknown.
 pub(crate) fn feeding_port(ports: &[Port]) -> Option<&Port> {
     ports.iter().find(|port| port.power_in == Some(true))
+}
+
+/// The interface the network comes in over: the first with a live link that rides a USB device.
+/// The dashboard draws a line from that device's row to the Network panel, as it does for power.
+pub(crate) fn linked_interface(network: &[Interface]) -> Option<&Interface> {
+    network.iter().find(|interface| interface.connected && interface.usb_location_id.is_some())
+}
+
+/// The device at a locationId, at any depth: what an interface's usbLocationId points at.
+pub(crate) fn device_at<'a>(devices: &'a [UsbDevice], location_id: &str) -> Option<&'a UsbDevice> {
+    devices.iter().find_map(|device| if device.location_id == location_id { Some(device) } else { device_at(&device.children, location_id) })
+}
+
+/// The interfaces this device carries, by name: a USB network adapter is where the network
+/// comes in, and both views say so on the device's own row.
+pub(crate) fn carried_interfaces(device: &UsbDevice, network: &[Interface]) -> Vec<String> {
+    network.iter().filter(|interface| interface.usb_location_id.as_deref() == Some(device.location_id.as_str())).map(|interface| interface.name.clone()).collect()
+}
+
+/// What a person calls the device an interface rides on, for the view's own row.
+pub(crate) fn carrier_name(interface: &Interface, devices: &[UsbDevice]) -> String {
+    interface.usb_location_id.as_deref().and_then(|location| device_at(devices, location)).map(label).unwrap_or_default()
+}
+
+/// A link's rate as a person reads it. A driver that cannot say reports 0, which says nothing.
+pub(crate) fn link_rate(megabits: i64) -> String {
+    match megabits {
+        0 => String::new(),
+        1000.. => format!("{} Gb/s", compact(megabits as f64 / 1000.0)),
+        _ => format!("{megabits} Mb/s"),
+    }
 }
 
 pub(crate) fn power_state(p: &Power) -> String {

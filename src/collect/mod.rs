@@ -4,6 +4,7 @@
 mod mac;
 mod sysfs;
 mod sysfs_displays;
+mod sysfs_net;
 mod sysfs_ports;
 mod sysfs_power;
 mod sysfs_smc;
@@ -28,6 +29,7 @@ pub fn collect_snapshot() -> Snapshot {
         ports: sysfs_ports::collect(smc.as_ref()),
         usb: sysfs_usb::collect(&sys),
         displays: sysfs_displays::collect(&sys),
+        network: sysfs_net::collect(&sys),
         power: sysfs_power::collect(&sys, smc.as_ref()),
     }
 }

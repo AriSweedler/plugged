@@ -11,6 +11,7 @@
   ],
   "generatedAt": "2026-11-12T14:20:00-08:00",
   "host": "mac",
+  "network": [],
   "ports": [
     {
       "active": true,

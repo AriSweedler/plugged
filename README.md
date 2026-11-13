@@ -1,7 +1,7 @@
 # plugged
 
 A dashboard of what is plugged into this machine: the USB-C and HDMI ports, the
-USB device tree, the displays, and power. On a Mac it reads the IORegistry
+USB device tree, the displays, the network interfaces, and power. On a Mac it reads the IORegistry
 through IOKit and the display list through AppKit; on Linux it reads sysfs. No
 subprocesses, no `system_profiler`, no parsing of `ioreg` output. `plugged --json`
 prints the same data once and exits. What every platform must report, and how
@@ -30,7 +30,22 @@ $ plugged
 ```
 
 The port that feeds the machine is joined to the Power panel, which names the adapter's
-watts, volts and amps. Off a terminal, or with `--text`, the same data is plain text:
+watts, volts and amps. A second line, blue, joins the device the network comes in on to
+its interface in the Network panel (`tests/fixtures/macbook-dock`, a machine the tests
+render and check):
+
+```
+├─ Devices ────────────────────────────────────────────────────────────────────────┤
+│ Portable SSD                   Example · 1 TB           5 Gb/s    bus 2          │
+│ USB3.1 Hub                     GenesysLogic             5 Gb/s    bus 6          │
+│ └─ USB 10/100/1000 LAN         Realtek                  5 Gb/s           enp6s ┓ │
+├─ Network ──────────────────────────────────────────────────────────────────────╂─┤
+│ Ethernet  enp0s31f6   ○                                                        ┃ │
+│ Ethernet  enp6s0u2u1  ●  1 Gb/s  on USB 10/100/1000 LAN ◀━━━━━━━━━━━━━━━━━━━━━━┛ │
+│ Wi-Fi     wlp3s0      ●                                                          │
+```
+
+Off a terminal, or with `--text`, the same data is plain text:
 
 ```
 $ plugged --text
@@ -116,6 +131,7 @@ same loop.
 | `ports[]` | `id` (`Port-USB-C@3`), `kind` (`usb-c` or `hdmi`), `label`, `active`, `transports` (`USB2`, `USB3`, `DisplayPort`, `CIO`), `displayPortLinkRate` when a DisplayPort link is up, `powerIn` when the port can take power in (true only while a power contract is live on it) |
 | `usb[]` | a tree of `name`, `vendor`, `vendorId`, `productId`, `revision`, `serial`, `speed` (0 low to 5 super+ 20 Gb/s), `speedLabel`, `locationId`, `containerId`, `port` (the `ports[].id` the device hangs off), `children` |
 | `displays[]` | `name`, `width`, `height` (pixels), `hz`, `builtin`, `main` |
+| `network[]` | `name` (`enp125s0u1`), `kind` (`ethernet`, `wi-fi`, `other`), `connected` (a live link), `speedMbps`, `usbLocationId` when the interface is on a USB device: the `usb[].locationId` it rides |
 | `power` | `externalConnected`, `charging`, `fullyCharged`, `percent`, `timeRemainingMin`, `adapter` (`watts`, `volts`, `amps`, `description`) |
 
 Optional keys are omitted, not null.
@@ -135,6 +151,7 @@ On a Mac:
 | usb | `IOUSBHostDevice` entries; parent links in the `IOUSB` plane form the tree; `kUSBContainerID` is the container id; the top byte of `locationID` is the host-controller bus, and bus N sits behind built-in port N+1 |
 | displays | `NSScreen.screens`, `CGDisplayCopyDisplayMode`, `CGDisplayIsBuiltin`, `CGDisplayIsMain` |
 | power | `AppleSmartBattery`; adapter watts are volts x amps when the controller reports no `Watts` |
+| network | not read yet: `network` is empty |
 
 On Linux, under `/sys`:
 
@@ -144,6 +161,7 @@ On Linux, under `/sys`:
 | usb | `bus/usb/devices/<bus>-<port>.<port>…`; the name is the tree; root hubs and interfaces are left out |
 | displays | `class/drm/card*-*` that are connected and enabled; the name, size and refresh rate come from the EDID, the size from `modes` without one |
 | power | `class/power_supply`: the first `Battery` that is not a peripheral's, and any other supply that is `online` |
+| network | `class/net/*` that have a `device` link, so the loopback, bridges and veths are left out; `carrier` is the live link, `speed` its rate, `phy80211` marks Wi-Fi; an adapter's interface shows up under its USB device at `<bus>-<port>:<config>.<interface>/net/<name>` |
 
 ## Layout
 
@@ -155,7 +173,7 @@ src/
   collect/
     mod.rs              collect_snapshot(): picks the platform's collectors
     mac/                macOS: ioreg.rs (the IOKit and CoreFoundation calls), ports.rs, usb.rs, power.rs, displays.rs
-    sysfs*.rs           Linux: sysfs.rs (file readers), sysfs_usb.rs, sysfs_power.rs, sysfs_displays.rs
+    sysfs*.rs           Linux: sysfs.rs (file readers), sysfs_usb.rs, sysfs_power.rs, sysfs_displays.rs, sysfs_net.rs
   render/
     merge.rs            merge_containers(), folds a hub's two halves
     text.rs             render_text(), the plain view

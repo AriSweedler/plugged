@@ -14,6 +14,9 @@ pub struct Snapshot {
     pub ports: Vec<Port>,
     pub usb: Vec<UsbDevice>,
     pub displays: Vec<Display>,
+    /// Absent from a document written before interfaces were collected: an empty list there.
+    #[serde(default)]
+    pub network: Vec<Interface>,
     pub power: Power,
 }
 
@@ -88,6 +91,41 @@ pub struct Display {
     pub hz: f64,
     pub builtin: bool,
     pub main: bool,
+}
+
+#[derive(Serialize, Deserialize, Clone, Copy, PartialEq)]
+pub enum LinkKind {
+    #[serde(rename = "ethernet")]
+    Ethernet,
+    #[serde(rename = "wi-fi")]
+    WiFi,
+    #[serde(rename = "other")]
+    Other,
+}
+
+impl LinkKind {
+    pub fn label(self) -> &'static str {
+        match self {
+            LinkKind::Ethernet => "Ethernet",
+            LinkKind::WiFi => "Wi-Fi",
+            LinkKind::Other => "Link",
+        }
+    }
+}
+
+/// A network interface the machine has in hardware, and whether a live link runs over it.
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Interface {
+    pub name: String,
+    pub kind: LinkKind,
+    /// A cable is in and the link is up, or the radio is associated.
+    pub connected: bool,
+    pub speed_mbps: i64,
+    /// The locationId of the USB device the interface lives on, so
+    /// `network[].usbLocationId == usb[].locationId` joins them; absent when it is not on USB.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub usb_location_id: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]

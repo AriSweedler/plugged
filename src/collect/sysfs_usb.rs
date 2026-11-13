@@ -93,7 +93,7 @@ fn speed_label(megabits: &str) -> String {
 }
 
 // The shape of a Mac's locationID: the bus in the top byte, then one nibble per hub port.
-fn location_id(bus: i64, path: &str) -> String {
+pub fn location_id(bus: i64, path: &str) -> String {
     let mut location = (bus as u32) << 24;
     let mut shift = 20;
     for port in path.split('.').filter_map(|port| port.parse::<u32>().ok()).take(6) {

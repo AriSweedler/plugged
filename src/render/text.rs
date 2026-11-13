@@ -1,6 +1,6 @@
 use super::merge::merge_containers;
-use super::{compact, detail, device_names, feeding_port, label, power_state, refresh, width};
-use crate::model::{Display, Port, Power, Snapshot, UsbDevice};
+use super::{carried_interfaces, carrier_name, compact, detail, device_names, feeding_port, label, link_rate, power_state, refresh, width};
+use crate::model::{Display, Interface, Port, Power, Snapshot, UsbDevice};
 
 pub fn render_text(s: &Snapshot) -> String {
     let devices = merge_containers(&s.usb);
@@ -8,7 +8,9 @@ pub fn render_text(s: &Snapshot) -> String {
     let mut lines = vec!["Ports".to_string()];
     lines.extend(if s.ports.is_empty() { none() } else { table(s.ports.iter().map(|port| port_row(port, &devices, &s.power, feeding_port(&s.ports))).collect()) });
     lines.extend(["".to_string(), "USB".to_string()]);
-    lines.extend(if devices.is_empty() { none() } else { table(devices.iter().flat_map(|device| usb_rows(device, &s.ports, 1)).collect()) });
+    lines.extend(if devices.is_empty() { none() } else { table(devices.iter().flat_map(|device| usb_rows(device, &s.ports, &s.network, 1)).collect()) });
+    lines.extend(["".to_string(), "Network".to_string()]);
+    lines.extend(if s.network.is_empty() { none() } else { table(s.network.iter().map(|interface| interface_row(interface, &devices)).collect()) });
     lines.extend(["".to_string(), "Displays".to_string()]);
     lines.extend(if s.displays.is_empty() { none() } else { s.displays.iter().map(display_line).collect() });
     lines.extend(["".to_string(), "Power".to_string()]);
@@ -27,14 +29,25 @@ fn port_row(port: &Port, devices: &[UsbDevice], power: &Power, feeding: Option<&
     ]
 }
 
-fn usb_rows(device: &UsbDevice, ports: &[Port], depth: usize) -> Vec<Vec<String>> {
+fn interface_row(interface: &Interface, devices: &[UsbDevice]) -> Vec<String> {
+    let on = carrier_name(interface, devices);
+    vec![
+        format!("  {}", interface.kind.label()),
+        interface.name.clone(),
+        if interface.connected { "\u{25CF}" } else { "\u{25CB}" }.to_string(),
+        link_rate(interface.speed_mbps),
+        if on.is_empty() { String::new() } else { format!("on {on}") },
+    ]
+}
+
+fn usb_rows(device: &UsbDevice, ports: &[Port], network: &[Interface], depth: usize) -> Vec<Vec<String>> {
     let port_label = if depth == 1 {
         ports.iter().find(|port| port.id == device.port).map_or(device.port.clone(), |port| port.label.clone())
     } else {
         String::new()
     };
-    let mut rows = vec![vec![format!("{}{}", "  ".repeat(depth), label(device)), detail(device), device.speed_label.clone(), port_label]];
-    rows.extend(device.children.iter().flat_map(|child| usb_rows(child, ports, depth + 1)));
+    let mut rows = vec![vec![format!("{}{}", "  ".repeat(depth), label(device)), detail(device), device.speed_label.clone(), port_label, carried_interfaces(device, network).join(", ")]];
+    rows.extend(device.children.iter().flat_map(|child| usb_rows(child, ports, network, depth + 1)));
     rows
 }
 

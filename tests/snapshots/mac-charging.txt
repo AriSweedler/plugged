@@ -9,6 +9,9 @@ USB
     Backups, Scratch  Example Portable SSD · 1 TB  10 Gb/s
     Keyboard          Example                      1.5 Mb/s
 
+Network
+  (none)
+
 Displays
   Built-in Retina Display  3024x1964 @ 120 Hz  builtin main
 
