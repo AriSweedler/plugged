@@ -151,7 +151,7 @@ On a Mac:
 | usb | `IOUSBHostDevice` entries; parent links in the `IOUSB` plane form the tree; `kUSBContainerID` is the container id; the top byte of `locationID` is the host-controller bus, and bus N sits behind built-in port N+1 |
 | displays | `NSScreen.screens`, `CGDisplayCopyDisplayMode`, `CGDisplayIsBuiltin`, `CGDisplayIsMain` |
 | power | `AppleSmartBattery`; adapter watts are volts x amps when the controller reports no `Watts` |
-| network | `IONetworkInterface` entries, so the loopback, bridges and tunnels are left out, as are the ones marked `HiddenInterface` or `HiddenConfiguration`; the controller above each has `IOLinkStatus`, the live link, and `IOLinkSpeed`, its rate; an `IO80211` or `IOUserNetworkWLAN` ancestor marks Wi-Fi, and an `IOUSBHostDevice` ancestor is the adapter the interface rides |
+| network | `IONetworkInterface` entries, so the loopback, bridges and tunnels are left out, as are the ones marked `HiddenInterface` or `HiddenConfiguration` and a Thunderbolt port's (`AppleThunderboltIPPort`) while its link is down; the controller above each has `IOLinkStatus`, the live link, and `IOLinkSpeed`, its rate; an `IO80211` or `IOUserNetworkWLAN` ancestor marks Wi-Fi, and an `IOUSBHostDevice` ancestor is the adapter the interface rides |
 
 On Linux, under `/sys`:
 

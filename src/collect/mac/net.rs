@@ -11,18 +11,23 @@ const WIFI_CLASSES: [&str; 4] = ["IO80211Interface", "IO80211Controller", "IO802
 /// never among them. The link is on the interface's controller, its parent: `IOLinkStatus` has
 /// bit 0 set when the status is known and bit 1 when the link is up, and `IOLinkSpeed` is the
 /// rate in bits a second. An interface the system keeps for itself (the Mac's own ports as a USB
-/// device) is marked `HiddenInterface` or `HiddenConfiguration` and left out.
+/// device) is marked `HiddenInterface` or `HiddenConfiguration` and left out. Each Thunderbolt
+/// port has an interface for networking with another computer, under an `AppleThunderboltIPPort`
+/// controller, whether or not anything is plugged in: it is left out until its link is up, as
+/// Linux makes such an interface only when the other computer appears.
 pub fn collect() -> Vec<Interface> {
     let mut found: Vec<Interface> = Vec::new();
     ioreg::for_each_service("IONetworkInterface", |entry| {
         let interface = ioreg::properties(entry);
         let Some(name) = interface.string("BSD Name") else { return };
         let mut controller: Option<Props> = None;
+        let mut thunderbolt = false;
         let mut wifi = ioreg::conforms_to(entry, "IO80211Interface");
         let mut usb_location_id: Option<String> = None;
         ioreg::for_each_ancestor(entry, "IOService", ANCESTORS, |ancestor| {
             if controller.is_none() {
                 controller = Some(ioreg::properties(ancestor));
+                thunderbolt = ioreg::conforms_to(ancestor, "AppleThunderboltIPPort");
             }
             wifi = wifi || WIFI_CLASSES.iter().any(|class| ioreg::conforms_to(ancestor, class));
             if ioreg::conforms_to(ancestor, "IOUSBHostDevice") {
@@ -36,6 +41,9 @@ pub fn collect() -> Vec<Interface> {
             return;
         }
         let connected = controller.int("IOLinkStatus").is_some_and(|status| status & 0b11 == 0b11);
+        if thunderbolt && !connected {
+            return;
+        }
         found.push(Interface {
             kind: kind(wifi, &interface),
             connected,

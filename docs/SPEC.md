@@ -61,7 +61,9 @@ that.
 `speedMbps` (the rate the link negotiated, `0` unknown), `usbLocationId` (optional: the
 `locationId` of the USB device the interface lives on, so `network[].usbLocationId ==
 usb[].locationId` joins them). A virtual interface is not one of these: the loopback, a bridge,
-a container's veth and a tunnel are left out, and what is left is what a cable can go into. A
+a container's veth and a tunnel are left out, and what is left is what a cable can go into. The
+interface a Thunderbolt port keeps for networking with another computer is listed only while
+that link is up. A
 document written before `network` existed reads as `[]`, so it keeps `schemaVersion` 1.
 
 **Display**: `name`, `width` and `height` of the mode in use or, failing that, the native mode,
