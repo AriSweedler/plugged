@@ -51,7 +51,8 @@ fn power_lines(p: &Power, feeding: Option<&Port>) -> Vec<String> {
     }
     let on = feeding.map(|port| format!("  on {}", port.label)).unwrap_or_default();
     if let Some(a) = &p.adapter {
-        lines.push(format!("  adapter {} W  {} V x {} A  {}{on}", a.watts, compact(a.volts), compact(a.amps), a.description).trim_end().to_string());
+        let described = if a.description.is_empty() { String::new() } else { format!("  {}", a.description) };
+        lines.push(format!("  adapter {} W  {} V x {} A{described}{on}", a.watts, compact(a.volts), compact(a.amps)));
     } else if p.external_connected {
         lines.push(format!("  source  external power{}", if on.is_empty() { "  port unknown".to_string() } else { on }));
     }
