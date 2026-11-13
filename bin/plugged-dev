@@ -26,12 +26,15 @@ USAGE
 }
 
 # cargo from PATH, else the one nixpkgs has, fetched for this run and installed nowhere.
-# gcc comes along: rustc links through `cc`, which a machine with no C toolchain has not got.
+# rustc links through `cc`: a machine with no C toolchain of its own borrows gcc too. One that
+# has a `cc` keeps it, since nixpkgs' gcc ahead of a Mac's cannot find the system's libiconv.
 cargo_run() {
   if command -v cargo >/dev/null; then
     cargo "$@"
   elif command -v nix >/dev/null; then
-    nix shell nixpkgs#cargo nixpkgs#rustc nixpkgs#clippy nixpkgs#gcc --command cargo "$@"
+    local -a toolchain=(nixpkgs#cargo nixpkgs#rustc nixpkgs#clippy)
+    command -v cc >/dev/null || toolchain+=(nixpkgs#gcc)
+    nix shell "${toolchain[@]}" --command cargo "$@"
   else
     log::err "no cargo on PATH and no nix to fetch one"
     return 1
