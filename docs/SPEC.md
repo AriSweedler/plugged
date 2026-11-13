@@ -87,7 +87,7 @@ the same rail in the frame's gutter: power yellow, network blue.
 
 | platform | reads | cannot know |
 |---|---|---|
-| macOS | the IORegistry (IOKit) and AppKit's screens | `network`, until the registry's interface side is read |
+| macOS | the IORegistry (IOKit) and AppKit's screens | a Wi-Fi link's `speedMbps` |
 | Linux | sysfs: `bus/usb/devices`, `class/power_supply`, `class/drm`, `class/net` | `ports`, `containerId`, `main`, a disk's `volumes`; `adapter` unless a supply publishes its contract |
 | Linux on an Intel Mac | the above, and the SMC through applesmc's `key_at_index` files when the machine lets the user write the index (root only by default) | as Linux, except: `ports` are known for power only (`active` means a source is on the port, `transports` is empty), with the port in use and the `adapter` it negotiated |
 

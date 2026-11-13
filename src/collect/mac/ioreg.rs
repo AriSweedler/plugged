@@ -43,6 +43,7 @@ extern "C" {
     fn IORegistryEntryGetRegistryEntryID(entry: u32, id: *mut u64) -> i32;
     fn IORegistryEntryGetParentEntry(entry: u32, plane: *const c_char, parent: *mut u32) -> i32;
     fn IORegistryEntryGetChildIterator(entry: u32, plane: *const c_char, iterator: *mut u32) -> i32;
+    fn IOObjectConformsTo(object: u32, class_name: *const c_char) -> u32;
 }
 
 /// A property's value. Data, dates and anything else the collectors never read are Other:
@@ -206,6 +207,36 @@ pub fn parent_id(entry: Entry, plane: &str) -> Option<u64> {
         let id = entry_id(parent);
         IOObjectRelease(parent);
         Some(id)
+    }
+}
+
+/// Whether the entry is of the class or of one that inherits from it.
+pub fn conforms_to(entry: Entry, class_name: &str) -> bool {
+    let Ok(class_name) = CString::new(class_name) else { return false };
+    unsafe { IOObjectConformsTo(entry, class_name.as_ptr()) != 0 }
+}
+
+/// The entry's ancestors in the plane, nearest first, until `body` returns false or `limit` of
+/// them have been seen.
+pub fn for_each_ancestor(entry: Entry, plane: &str, limit: usize, mut body: impl FnMut(Entry) -> bool) {
+    let Ok(plane) = CString::new(plane) else { return };
+    let mut current = entry;
+    for _ in 0..limit {
+        let mut parent: Entry = 0;
+        let found = unsafe { IORegistryEntryGetParentEntry(current, plane.as_ptr(), &mut parent) } == 0 && parent != 0;
+        if current != entry {
+            unsafe { IOObjectRelease(current) };
+        }
+        if !found {
+            return;
+        }
+        current = parent;
+        if !body(current) {
+            break;
+        }
+    }
+    if current != entry {
+        unsafe { IOObjectRelease(current) };
     }
 }
 

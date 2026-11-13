@@ -4,6 +4,7 @@
 
 mod displays;
 mod ioreg;
+mod net;
 mod ports;
 mod power;
 mod usb;
@@ -18,8 +19,7 @@ pub fn collect(generated_at: String, host: String) -> Snapshot {
         ports: ports::collect(),
         usb: usb::collect(),
         displays: displays::collect(),
-        // Not read here yet: the registry's IOEthernetInterface side is unwritten (docs/SPEC.md).
-        network: Vec::new(),
+        network: net::collect(),
         power: power::collect(),
     }
 }
