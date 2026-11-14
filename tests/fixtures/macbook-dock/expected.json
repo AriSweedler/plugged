@@ -181,7 +181,10 @@
       "speedLabel": "5 Gb/s",
       "storage": {
         "bytes": 1000204886016,
-        "volumes": []
+        "volumes": [
+          "Backup",
+          "Photo Library"
+        ]
       },
       "vendor": "Example",
       "vendorId": 4660

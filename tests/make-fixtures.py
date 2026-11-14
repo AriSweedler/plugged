@@ -4,9 +4,10 @@ MacBook Pro under NixOS. Serials and EDIDs are made up.
 
   laptop-nixos   on mains, a dock's hub, a keyboard, a 4K monitor, Wi-Fi up and a built-in
                  Ethernet port with no cable in it; its SMC cannot be read
-  macbook-dock   the same, fed through a dock on two ports, with a USB disk and the dock's
-                 Ethernet adapter carrying the network; its SMC can be read, so the ports, the
-                 port in use and the adapter are known
+  macbook-dock   the same, fed through a dock on two ports, with a USB disk of two labelled
+                 volumes (udev's database beside sys/, as run/) and the dock's Ethernet adapter
+                 carrying the network; its SMC can be read, so the ports, the port in use and
+                 the adapter are known
 
 Run it again after editing; then `bin/plugged-dev test --update` rewrites the expected files."""
 import pathlib, shutil, struct
@@ -77,7 +78,24 @@ ROOT = DOCK
 put(f"{supply}/BAT0", status="Charging", capacity="62", current_now="1500000")
 # A disk: a block device under the USB device's interface, sized in 512-byte sectors (1 TB).
 put(f"{usb}/2-1", idVendor="1234", idProduct="5678", bcdDevice="0100", speed="5000", busnum="2", devpath="1", manufacturer="Example", product="Portable SSD", serial="SN00000002")
-put(f"{usb}/2-1/2-1:1.0/host2/target2:0:0/2:0:0:0/block/sda", size="1953525168")
+disk = f"{usb}/2-1/2-1:1.0/host2/target2:0:0/2:0:0:0/block/sda"
+put(disk, size="1953525168", dev="8:0")
+# Its partitions, each a block device under the disk with its number and major:minor. Their
+# labels are in udev's database, /run/udev/data/b<major>:<minor>, kept beside sys/ as run/: an
+# EFI system partition a Mac formats in (left out, as a Mac leaves it out), then two volumes,
+# the second's label with a space, which udev escapes.
+put(f"{disk}/sda1", partition="1", dev="8:1", size="409600")
+put(f"{disk}/sda2", partition="2", dev="8:2", size="976562500")
+put(f"{disk}/sda3", partition="3", dev="8:3", size="976553028")
+UDEV = DOCK.parent / "run" / "udev" / "data"
+shutil.rmtree(DOCK.parent / "run", ignore_errors=True)
+UDEV.mkdir(parents=True)
+for dev, part_type, label in [
+    ("8:1", "c12a7328-f81f-11d2-ba4b-00a0c93ec93b", "EFI"),
+    ("8:2", "ebd0a0a2-b9e5-4433-87c0-68b6b72699c7", "Backup"),
+    ("8:3", "ebd0a0a2-b9e5-4433-87c0-68b6b72699c7", "Photo Library"),
+]:
+    (UDEV / f"b{dev}").write_text(f"E:ID_FS_LABEL={label.replace(' ', '_')}\nE:ID_FS_LABEL_ENC={label.replace(' ', chr(92) + 'x20')}\nE:ID_PART_ENTRY_TYPE={part_type}\n")
 
 # The dock's Ethernet adapter, on the USB 3 hub: its interface publishes a net device, the way
 # the disk above publishes a block device, which is how an interface is tied to what it rides on.

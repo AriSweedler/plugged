@@ -158,7 +158,7 @@ On Linux, under `/sys`:
 | subsystem | source |
 |---|---|
 | ports | none: `ports` is empty |
-| usb | `bus/usb/devices/<bus>-<port>.<port>…`; the name is the tree; root hubs and interfaces are left out |
+| usb | `bus/usb/devices/<bus>-<port>.<port>…`; the name is the tree; root hubs and interfaces are left out; a disk is the `block/sdX` under one of its interfaces, its volumes the partitions under that (`sdXN/partition`), each named by its `ID_FS_LABEL_ENC` in udev's `/run/udev/data/b<major>:<minor>`, an EFI system partition left out |
 | displays | `class/drm/card*-*` that are connected and enabled; the name, size and refresh rate come from the EDID, the size from `modes` without one |
 | power | `class/power_supply`: the first `Battery` that is not a peripheral's, and any other supply that is `online` |
 | network | `class/net/*` that have a `device` link, so the loopback, bridges and veths are left out; `carrier` is the live link, `speed` its rate, `phy80211` marks Wi-Fi; an adapter's interface shows up under its USB device at `<bus>-<port>:<config>.<interface>/net/<name>` |

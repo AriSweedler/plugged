@@ -90,7 +90,7 @@ the same rail in the frame's gutter: power yellow, network blue.
 | platform | reads | cannot know |
 |---|---|---|
 | macOS | the IORegistry (IOKit) and AppKit's screens | a Wi-Fi link's `speedMbps` |
-| Linux | sysfs: `bus/usb/devices`, `class/power_supply`, `class/drm`, `class/net` | `ports`, `containerId`, `main`, a disk's `volumes`; `adapter` unless a supply publishes its contract |
+| Linux | sysfs: `bus/usb/devices`, `class/power_supply`, `class/drm`, `class/net`; udev's database beside it (`/run/udev/data`) for a disk's volume labels | `ports`, `containerId`, `main`, the name of a volume with no label; `adapter` unless a supply publishes its contract |
 | Linux on an Intel Mac | the above, and the SMC through applesmc's `key_at_index` files when the machine lets the user write the index (root only by default) | as Linux, except: `ports` are known for power only (`active` means a source is on the port, `transports` is empty), with the port in use and the `adapter` it negotiated |
 
 A new platform is a set of collectors that fills the snapshot, a branch in
@@ -103,7 +103,8 @@ A new platform is a set of collectors that fills the snapshot, a branch in
 - **Conformance.** `tests/conform.jq` holds the rules above that a program can check. The
   snapshot of the machine the tests run on must pass it, so each platform is checked where it
   is built.
-- **Recorded machines.** Each `tests/fixtures/<name>/sys` is a sysfs tree. `PLUGGED_SYSFS_ROOT`
+- **Recorded machines.** Each `tests/fixtures/<name>/sys` is a sysfs tree, with udev's database
+  beside it as `run/udev/data` where the machine has one. `PLUGGED_SYSFS_ROOT`
   points the Linux collectors at it, on any platform, and the result must pass conformance and
   equal `expected.json` (with `generatedAt` and `host` pinned) and, rendered, `expected.txt`
   (the text view) and `expected.frame.txt` (the dashboard, 84 columns, uncolored: what
