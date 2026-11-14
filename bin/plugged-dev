@@ -16,7 +16,7 @@ usage() {
 usage: plugged-dev <build|test [--update]|check>
   build   release build into $XDG_CACHE_HOME/plugged/target, with cargo from PATH or, without
           one, from nixpkgs for the length of the build; clippy's warnings fail it
-  test    the spec's tests (docs/SPEC.md): this machine's `plugged json` against tests/conform.jq,
+  test    cargo test, then the spec's tests (docs/SPEC.md): this machine's `plugged json` against tests/conform.jq,
           then every recorded machine under tests/fixtures (a sysfs tree) and every recorded
           snapshot under tests/snapshots (a JSON document) against its expected JSON, text and
           dashboard frame; --update rewrites the expected files from the current build
@@ -131,6 +131,9 @@ expect_exit() {
 run_tests() {
   UPDATE="${1:-}"
   local failed=0 fixture snapshot name document
+  # The renderers' own tests: what no snapshot can reach, as two links that cross.
+  log::info "cargo test"
+  cargo_run test --quiet --release --manifest-path "${ROOT}/Cargo.toml" --target-dir "${TARGET}" || { log::err "cargo test failed"; failed=1; }
   log::info "conform: this machine's plugged json"
   "${ROOT}/bin/plugged" json | jq -e -f "${ROOT}/tests/conform.jq" >/dev/null || { log::err "this machine's json breaks the spec | see='tests/conform.jq'"; failed=1; }
   # Recorded machines: a sysfs tree the Linux collectors read on any platform.

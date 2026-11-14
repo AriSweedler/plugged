@@ -112,6 +112,8 @@ A new platform is a set of collectors that fills the snapshot, a branch in
 - **Recorded snapshots.** Each `tests/snapshots/<name>.json` is a snapshot document, from any
   platform, with `<name>.txt` and `<name>.frame.txt` beside it. `mac-charging` is a Mac fed
   through one of its ports: the case that draws the power link.
+- **Unit tests.** `cargo test` runs first, for rendering no snapshot can reach: two links that
+  cross, where the one going down stays whole and the one going across breaks.
 - `bin/plugged-dev test --update` rewrites the expected files; the diff is the review.
 
 A new fixture is a script like `tests/make-fixtures.py`. Fixtures hold made-up

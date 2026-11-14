@@ -163,7 +163,7 @@ pub fn build_frame(s: &Snapshot, status: &str, columns: usize) -> Vec<Row> {
     }
     frame.push(border('\u{2570}', '\u{256F}', None, w));
     for link in &links {
-        draw_link(&mut frame, placed[link.from.0][link.from.1], placed[link.to.0][link.to.1], w, link.style);
+        draw_link(&mut frame, placed[link.from.0][link.from.1], placed[link.to.0][link.to.1], w - 3, link.style);
     }
     if columns < w { frame.iter().map(|row| truncate(row, columns)).collect() } else { frame }
 }
@@ -204,14 +204,15 @@ fn boxed(content: Row, w: usize) -> Row {
 }
 
 // Out of the row it leaves to its rail, down the rail through whatever lies between, and back in
-// to the row it feeds: ━ across, ┃ down, ╂ where it crosses a panel border, ╋ another link.
-fn draw_link(frame: &mut [Row], from: usize, to: usize, w: usize, style: Style) {
-    let rail = w - 3;
-    let content_end = |row: &Row| (2..rail).rev().find(|&x| row[x].ch != ' ').unwrap_or(1);
+// to the row it feeds: ━ across, ┃ down, ╂ where it crosses a panel border. Where it crosses
+// another link the down stroke stays whole and the across stroke breaks, so neither reads as a
+// junction (no ╋). The rail is a gutter column; content ends 4 cells from the right edge.
+fn draw_link(frame: &mut [Row], from: usize, to: usize, rail: usize, style: Style) {
+    let content_end = |row: &Row| (2..row.len() - 4).rev().find(|&x| row[x].ch != ' ').unwrap_or(1);
     let put = |frame: &mut [Row], row: usize, x: usize, ch: char| {
         let joined = match (frame[row][x].ch, ch) {
             ('\u{2500}', '\u{2503}') => '\u{2542}',
-            ('\u{2501}', '\u{2503}') | ('\u{2503}' | '\u{2542}' | '\u{254B}', '\u{2501}') => '\u{254B}',
+            ('\u{2503}' | '\u{2542}', '\u{2501}') => return,
             _ => ch,
         };
         frame[row][x] = Cell { ch: joined, style };
@@ -399,4 +400,41 @@ fn display_rows(displays: &[Display]) -> Vec<Row> {
             })
             .collect(),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const W: usize = 48;
+
+    // A box of eight one-word rows, the second link's rail one column right of the first's, so
+    // the second's way in crosses the first's way down on row 3, whichever is drawn first.
+    fn crossed(first_drawn_is_outer: bool) -> Vec<Row> {
+        let mut frame = vec![border('\u{256D}', '\u{256E}', Some("Test"), W)];
+        frame.extend((0..8).map(|_| boxed(cells("row", PLAIN), W)));
+        frame.push(border('\u{2570}', '\u{256F}', None, W));
+        let inner = |frame: &mut Vec<Row>| draw_link(frame, 1, 6, W - 3, NETWORK);
+        let outer = |frame: &mut Vec<Row>| draw_link(frame, 3, 8, W - 2, POWER);
+        if first_drawn_is_outer {
+            outer(&mut frame);
+            inner(&mut frame);
+        } else {
+            inner(&mut frame);
+            outer(&mut frame);
+        }
+        frame
+    }
+
+    #[test]
+    fn a_crossing_keeps_the_down_stroke_whole() {
+        for first_drawn_is_outer in [false, true] {
+            let frame = crossed(first_drawn_is_outer);
+            let lines: Vec<String> = frame.iter().map(render_plain).collect();
+            assert_eq!(lines[3], format!("\u{2502} row {}\u{2503}\u{2513}\u{2502}", "\u{2501}".repeat(W - 9)));
+            let crossing = frame[3][W - 3];
+            assert!(crossing.ch == '\u{2503}' && crossing.style == NETWORK, "the inner link's rail is broken at the crossing");
+            assert!(lines.iter().all(|line| !line.contains('\u{254B}')), "a crossing drawn as a junction:\n{}", lines.join("\n"));
+        }
+    }
 }
