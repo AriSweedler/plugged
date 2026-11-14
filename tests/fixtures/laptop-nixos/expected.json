@@ -108,6 +108,7 @@
           "vendorId": 1060
         }
       ],
+      "containerId": "1-7+6-2",
       "locationId": "0x01700000",
       "name": "USB2.1 Hub",
       "port": "bus 1",
@@ -120,6 +121,7 @@
     },
     {
       "children": [],
+      "containerId": "1-7+6-2",
       "locationId": "0x06200000",
       "name": "USB3.1 Hub",
       "port": "bus 6",

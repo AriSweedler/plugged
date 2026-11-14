@@ -1,6 +1,7 @@
 use super::sysfs;
 use crate::model::{Storage, UsbDevice};
 use crate::render::compact;
+use std::collections::HashMap;
 
 /// One directory per device under bus/usb/devices, named <bus>-<port>.<port>…; the name is
 /// the topology. usbN is a root hub, the host controller itself, and N-P:C.I is an interface.
@@ -8,18 +9,36 @@ pub fn collect(sys: &str) -> Vec<UsbDevice> {
     let root = format!("{sys}/bus/usb/devices");
     let udev = udev_data(sys);
     let names: Vec<String> = sysfs::entries(&root).into_iter().filter(|name| name.contains('-') && !name.contains(':')).collect();
+    let containers = containers(&names, &root);
     let mut roots: Vec<UsbDevice> = names
         .iter()
         .filter(|name| !parent(name).is_some_and(|parent| names.iter().any(|other| other == parent)))
-        .map(|name| build(name, &names, &root, &udev))
+        .map(|name| build(name, &names, &root, &udev, &containers))
         .collect();
     roots.sort_by(|a, b| a.location_id.cmp(&b.location_id));
     roots
 }
 
-fn build(name: &str, names: &[String], root: &str, udev: &str) -> UsbDevice {
+// The BOS descriptor that holds a container id is not in sysfs, but the kernel links each USB 2
+// port to its USB 3 twin (<device>/port is the port a device is on, <port>/peer the twin,
+// <port>/device what is on it). A USB 3 hub enumerates once on each, so two devices on peered
+// ports are its two halves, and both get one id made of their names.
+fn containers(names: &[String], root: &str) -> HashMap<String, String> {
+    names
+        .iter()
+        .filter_map(|name| {
+            let peer = sysfs::link_name(&format!("{root}/{name}/port/peer/device")).filter(|peer| names.contains(peer))?;
+            let mut pair = [name.as_str(), peer.as_str()];
+            pair.sort();
+            Some((name.clone(), pair.join("+")))
+        })
+        .collect()
+}
+
+fn build(name: &str, names: &[String], root: &str, udev: &str, containers: &HashMap<String, String>) -> UsbDevice {
     let mut device = usb_device(&format!("{root}/{name}"), udev);
-    device.children = names.iter().filter(|other| parent(other) == Some(name)).map(|child| build(child, names, root, udev)).collect();
+    device.container_id = containers.get(name).cloned();
+    device.children = names.iter().filter(|other| parent(other) == Some(name)).map(|child| build(child, names, root, udev, containers)).collect();
     device.children.sort_by(|a, b| a.location_id.cmp(&b.location_id));
     device
 }
@@ -45,8 +64,6 @@ fn usb_device(dir: &str, udev: &str) -> UsbDevice {
         speed: speed_code(&megabits),
         speed_label: speed_label(&megabits),
         location_id: location_id(bus, &sysfs::string(&format!("{dir}/devpath")).unwrap_or_default()),
-        // The container id lives in the BOS descriptor, which sysfs does not publish, so a
-        // USB 3 hub's two halves stay two devices here.
         container_id: None,
         port: format!("bus {bus}"),
         storage: storage(dir, udev),

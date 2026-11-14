@@ -90,7 +90,7 @@ the same rail in the frame's gutter: power yellow, network blue.
 | platform | reads | cannot know |
 |---|---|---|
 | macOS | the IORegistry (IOKit) and AppKit's screens | a Wi-Fi link's `speedMbps` |
-| Linux | sysfs: `bus/usb/devices`, `class/power_supply`, `class/drm`, `class/net`; udev's database beside it (`/run/udev/data`) for a disk's volume labels | `ports`, `containerId`, `main`, the name of a volume with no label; `adapter` unless a supply publishes its contract |
+| Linux | sysfs: `bus/usb/devices` (with each device's `port` link and the port's `peer`, which pairs a USB 3 hub's two halves under one `containerId` made of their names, `1-7+6-2`), `class/power_supply`, `class/drm`, `class/net`; udev's database beside it (`/run/udev/data`) for a disk's volume labels | `ports`, `containerId` of any other device, `main`, the name of a volume with no label; `adapter` unless a supply publishes its contract |
 | Linux on an Intel Mac | the above, and the SMC through applesmc's `key_at_index` files when the machine lets the user write the index (root only by default) | as Linux, except: `ports` are known for power only (`active` means a source is on the port, `transports` is empty), with the port in use and the `adapter` it negotiated |
 
 A new platform is a set of collectors that fills the snapshot, a branch in

@@ -26,6 +26,11 @@ pub fn hex(path: &str) -> Option<u32> {
     u32::from_str_radix(&string(path)?, 16).ok()
 }
 
+/// The name of what a symlink chain ends at: a device's directory is named after the device.
+pub fn link_name(path: &str) -> Option<String> {
+    fs::canonicalize(path).ok()?.file_name()?.to_str().map(str::to_string)
+}
+
 pub fn bytes(path: &str) -> Vec<u8> {
     fs::read(path).unwrap_or_default()
 }

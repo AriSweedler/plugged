@@ -2,7 +2,7 @@
 """Writes the recorded machines under tests/fixtures/<name>/sys: sysfs trees shaped like a 2017
 MacBook Pro under NixOS. Serials and EDIDs are made up.
 
-  laptop-nixos   on mains, a dock's hub, a keyboard, a 4K monitor, Wi-Fi up and a built-in
+  laptop-nixos   on mains, a dock's hub (two halves, on peered USB 2 and USB 3 ports), a keyboard, a 4K monitor, Wi-Fi up and a built-in
                  Ethernet port with no cable in it; its SMC cannot be read
   macbook-dock   the same, fed through a dock on two ports, with a USB disk of two labelled
                  volumes (udev's database beside sys/, as run/) and the dock's Ethernet adapter
@@ -21,6 +21,11 @@ def put(directory: str, **attributes: str) -> None:
         path = ROOT / directory / name
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(value + "\n")
+
+
+def link(path: str, target: str) -> None:
+    (ROOT / path).parent.mkdir(parents=True, exist_ok=True)
+    (ROOT / path).symlink_to(target)
 
 
 def edid(name: str, width: int, height: int, hblank: int, vblank: int, hz: float) -> bytes:
@@ -46,6 +51,16 @@ put(f"{usb}/1-7.4.3", idVendor="0bda", idProduct="3035", bcdDevice="0001", speed
 put(f"{usb}/1-7.1", idVendor="291a", idProduct="8355", bcdDevice="0112", speed="12", busnum="1", devpath="7.1", manufacturer="BillBoard", product="USB BillBoard", serial="SN00000000")
 put(f"{usb}/1-3", idVendor="05ac", idProduct="1281", bcdDevice="0000", speed="480", busnum="1", devpath="3", manufacturer="Apple Inc.")  # no product string
 put(f"{usb}/6-2", idVendor="05e3", idProduct="0626", bcdDevice="0663", speed="5000", busnum="6", devpath="2", manufacturer="GenesysLogic", product="USB3.1 Hub")
+# The ports the root hubs offer, under their interfaces, as links: the device on a port and the
+# port it is on point at each other, and the kernel pairs each USB 2 port with its USB 3 twin as
+# peers. The dock's hub is on both halves of one pair, so its two halves are one hub; the
+# no-name Apple device is on a USB 2 port whose twin is empty, and stays alone.
+for bus, port, device, peer in [(1, 7, "1-7", (6, 2)), (6, 2, "6-2", (1, 7)), (1, 3, "1-3", (6, 3)), (6, 3, None, (1, 3))]:
+    at = f"{usb}/usb{bus}/{bus}-0:1.0/usb{bus}-port{port}"
+    link(f"{at}/peer", f"../../../usb{peer[0]}/{peer[0]}-0:1.0/usb{peer[0]}-port{peer[1]}")
+    if device:
+        link(f"{at}/device", f"../../../{device}")
+        link(f"{usb}/{device}/port", f"../usb{bus}/{bus}-0:1.0/usb{bus}-port{port}")
 
 # class/net, where a real tree links every interface to the device behind it. Only an interface
 # with hardware under it has that link, and the fixture stands it up as a file: the collector
@@ -72,7 +87,7 @@ put(f"{drm}/card2", dev="226:2")  # the card itself: not a connector
 # The second machine: the first, then what differs.
 DOCK = FIXTURES / "macbook-dock" / "sys"
 shutil.rmtree(DOCK, ignore_errors=True)
-shutil.copytree(ROOT, DOCK)
+shutil.copytree(ROOT, DOCK, symlinks=True)
 ROOT = DOCK
 
 put(f"{supply}/BAT0", status="Charging", capacity="62", current_now="1500000")
