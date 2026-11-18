@@ -39,7 +39,9 @@ never guessed and never left out, except the fields marked optional.
 **Port**: `id` (unique), `kind` (`usb-c`, `hdmi`), `label` (what a person calls it, `USB-C 1`),
 `active` (something is connected), `transports` (what runs over the cable now: `USB2`, `USB3`,
 `DisplayPort`, `CIO`), `displayPortLinkRate` (optional), `powerIn` (`true` while the port feeds
-the machine, `false` when it could and does not, `null` when it cannot).
+the machine, `false` when it could and does not, `null` when it cannot), `powerOut` (optional:
+`watts`, `volts`, `amps` the machine supplies out of the port to a device, as measured; left out
+when it supplies nothing or the platform cannot tell).
 
 **USB device**: `name` (the product string; `vvvv:pppp` in hex when it has none), `vendor`
 (`""` when it has none), `vendorId`, `productId`, `revision` (`major.minor`), `serial`
@@ -80,6 +82,9 @@ Where the power comes in is the port whose `powerIn` is `true`. The views name i
 adapter, and the dashboard draws a line from that port's row to the Power panel. A platform
 that reports no ports says the port is unknown.
 
+Where power goes out is every port with a `powerOut`. The views show it in the port's row
+(`power-out 7.6 W`) and as an `out` line in Power, one per port, naming the port it goes to.
+
 Where the network comes in is the first interface with a live link that rides a USB device. The
 views name that device beside the interface and the interface beside the device, and the
 dashboard draws a second line, from the device's row to the Network panel. Both lines run down
@@ -89,8 +94,8 @@ the same rail in the frame's gutter: power yellow, network blue.
 
 | platform | reads | cannot know |
 |---|---|---|
-| macOS | the IORegistry (IOKit) and AppKit's screens | a Wi-Fi link's `speedMbps` |
-| Linux | sysfs: `bus/usb/devices` (with each device's `port` link and the port's `peer`, which pairs a USB 3 hub's two halves under one `containerId` made of their names, `1-7+6-2`), `class/power_supply`, `class/drm`, `class/net`; udev's database beside it (`/run/udev/data`) for a disk's volume labels | `ports`, `containerId` of any other device, `main`, the name of a volume with no label; `adapter` unless a supply publishes its contract |
+| macOS | the IORegistry (IOKit) and AppKit's screens; a port's `powerOut` from `AppleSmartBattery`'s `PowerOutDetails`, whose `PortIndex` is the port's number less one (seen on an Apple silicon MacBook Pro) | a Wi-Fi link's `speedMbps`; `powerOut` where the battery publishes no `PowerOutDetails` (Intel Macs) |
+| Linux | sysfs: `bus/usb/devices` (with each device's `port` link and the port's `peer`, which pairs a USB 3 hub's two halves under one `containerId` made of their names, `1-7+6-2`), `class/power_supply`, `class/drm`, `class/net`; udev's database beside it (`/run/udev/data`) for a disk's volume labels | `ports`, `containerId` of any other device, `main`, the name of a volume with no label; `adapter` unless a supply publishes its contract; a port's `powerOut` |
 | Linux on an Intel Mac | the above, and the SMC through applesmc's `key_at_index` files when the machine lets the user write the index (root only by default) | as Linux, except: `ports` are known for power only (`active` means a source is on the port, `transports` is empty), with the port in use and the `adapter` it negotiated |
 
 A new platform is a set of collectors that fills the snapshot, a branch in

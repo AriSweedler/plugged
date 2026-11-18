@@ -14,7 +14,7 @@ pub fn render_text(s: &Snapshot) -> String {
     lines.extend(["".to_string(), "Displays".to_string()]);
     lines.extend(if s.displays.is_empty() { none() } else { s.displays.iter().map(display_line).collect() });
     lines.extend(["".to_string(), "Power".to_string()]);
-    lines.extend(power_lines(&s.power, feeding_port(&s.ports)));
+    lines.extend(power_lines(&s.power, feeding_port(&s.ports), &s.ports));
     lines.join("\n")
 }
 
@@ -25,7 +25,11 @@ fn port_row(port: &Port, devices: &[UsbDevice], power: &Power, feeding: Option<&
         if port.active { "\u{25CF}" } else { "\u{25CB}" }.to_string(),
         if port.transports.is_empty() { "-".to_string() } else { port.transports.join(" ") },
         device_names(port, devices).join(", "),
-        if port.power_in == Some(true) { format!("power-in{}", watts.unwrap_or_default()) } else { String::new() },
+        match &port.power_out {
+            _ if port.power_in == Some(true) => format!("power-in{}", watts.unwrap_or_default()),
+            Some(out) => format!("power-out {} W", compact(out.watts)),
+            None => String::new(),
+        },
     ]
 }
 
@@ -57,7 +61,7 @@ fn display_line(d: &Display) -> String {
     format!("  {}  {}x{}{}{}", d.name, d.width, d.height, refresh(d), tail)
 }
 
-fn power_lines(p: &Power, feeding: Option<&Port>) -> Vec<String> {
+fn power_lines(p: &Power, feeding: Option<&Port>, ports: &[Port]) -> Vec<String> {
     let mut lines = vec![format!("  battery {}%  {}", p.percent, power_state(p))];
     if let Some(flow) = &p.battery {
         lines.push(format!("  battery {} W  {} V x {} A  {}", compact(flow.watts), compact(flow.volts), compact(flow.amps), if p.charging { "in" } else { "out" }));
@@ -68,6 +72,10 @@ fn power_lines(p: &Power, feeding: Option<&Port>) -> Vec<String> {
         lines.push(format!("  adapter {} W  {} V x {} A{described}{on}", a.watts, compact(a.volts), compact(a.amps)));
     } else if p.external_connected {
         lines.push(format!("  source  external power{}", if on.is_empty() { "  port unknown".to_string() } else { on }));
+    }
+    for port in ports {
+        let Some(out) = &port.power_out else { continue };
+        lines.push(format!("  out     {} W  {} V x {} A  to {}", compact(out.watts), compact(out.volts), compact(out.amps), port.label));
     }
     lines
 }

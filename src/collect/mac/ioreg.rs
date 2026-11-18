@@ -105,6 +105,14 @@ impl Props {
             _ => None,
         }
     }
+
+    /// The dictionaries of an array property, as AppleSmartBattery's PowerOutDetails.
+    pub fn dicts(&self, key: &str) -> Vec<&Props> {
+        match self.0.get(key) {
+            Some(Value::Array(values)) => values.iter().filter_map(|value| if let Value::Dict(d) = value { Some(d) } else { None }).collect(),
+            _ => Vec::new(),
+        }
+    }
 }
 
 /// Borrows `cf`; the caller still owns it.

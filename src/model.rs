@@ -50,6 +50,10 @@ pub struct Port {
     /// None when the port cannot take power in; true only while a power contract is live on it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub power_in: Option<bool>,
+    /// What the machine supplies out of this port to a device; None when it supplies nothing, or
+    /// the platform cannot tell.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub power_out: Option<BatteryFlow>,
 }
 
 /// What a USB device is when it is a disk: its size, and the volumes on it by name.
@@ -138,7 +142,8 @@ pub struct Adapter {
     pub description: String,
 }
 
-/// What flows into the battery while it charges, or out of it otherwise.
+/// A measured flow of power: into the battery while it charges, or out of it otherwise; and, as
+/// a port's `power_out`, what the machine supplies out of that port to a device.
 #[derive(Serialize, Deserialize, Clone)]
 pub struct BatteryFlow {
     #[serde(serialize_with = "whole_as_integer")]

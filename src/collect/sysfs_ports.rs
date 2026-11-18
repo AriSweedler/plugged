@@ -18,6 +18,7 @@ pub fn collect(smc: Option<&Smc>) -> Vec<Port> {
             transports: Vec::new(),
             display_port_link_rate: None,
             power_in: Some(feeding == Some(number)),
+            power_out: None, // the SMC keys read here say what comes in, not what goes out
         })
         .collect()
 }

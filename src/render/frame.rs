@@ -128,7 +128,7 @@ pub fn build_frame(s: &Snapshot, status: &str, columns: usize) -> Vec<Row> {
     if !s.ports.is_empty() {
         panels.push(Panel { title: "Ports", rows: port_rows(&s.ports, &devices, &s.power) });
     }
-    let (power, source_row) = power_rows(&s.power, feeding);
+    let (power, source_row) = power_rows(&s.power, feeding, &s.ports);
     let power_panel = panels.len();
     panels.push(Panel { title: "Power", rows: power });
     // The power link: out of the row of the port that feeds the machine, into the source line.
@@ -266,7 +266,13 @@ fn port_rows(ports: &[Port], devices: &[UsbDevice], power: &Power) -> Vec<Row> {
                     if port.active { cells("\u{25CF}", fg(GREEN)) } else { cells("\u{25CB}", DIM) },
                     cells(&port.transports.join(" "), fg(CYAN)),
                     cells(&device_names(port, devices).join(", "), PLAIN),
-                    if fed { cells(&format!("power-in{}", watts.unwrap_or_default()), POWER) } else { Vec::new() },
+                    if fed {
+                        cells(&format!("power-in{}", watts.unwrap_or_default()), POWER)
+                    } else if let Some(out) = &port.power_out {
+                        cells(&format!("power-out {} W", compact(out.watts)), POWER)
+                    } else {
+                        Vec::new()
+                    },
                 ]
             })
             .collect(),
@@ -275,8 +281,9 @@ fn port_rows(ports: &[Port], devices: &[UsbDevice], power: &Power) -> Vec<Row> {
 
 const GAUGE: usize = 24;
 
-// The rows of the Power panel, and which of them names the source: where the link lands.
-fn power_rows(p: &Power, feeding: Option<&Port>) -> (Vec<Row>, Option<usize>) {
+// The rows of the Power panel, and which of them names the source: where the link lands. Each
+// port that supplies power out gets an `out` line after the source.
+fn power_rows(p: &Power, feeding: Option<&Port>, ports: &[Port]) -> (Vec<Row>, Option<usize>) {
     let level = if p.fully_charged || p.charging || p.percent >= 50 {
         GREEN
     } else if p.percent >= 20 {
@@ -327,6 +334,15 @@ fn power_rows(p: &Power, feeding: Option<&Port>) -> (Vec<Row>, Option<usize>) {
                 Some(on) => cells(&on, POWER),
                 None => cells("  \u{00B7}  port unknown", DIM),
             },
+        ]));
+    }
+    for port in ports {
+        let Some(out) = &port.power_out else { continue };
+        rows.push(join(vec![
+            cells("out      ", POWER),
+            cells(&format!("{} W", compact(out.watts)), BOLD),
+            cells(&format!("  \u{00B7}  {} V \u{00D7} {} A", compact(out.volts), compact(out.amps)), PLAIN),
+            cells(&format!("  \u{00B7}  to {}", port.label), POWER),
         ]));
     }
     (rows, source_row)

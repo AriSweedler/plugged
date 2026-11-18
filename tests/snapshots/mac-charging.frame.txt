@@ -1,7 +1,7 @@
  plugged  mac                                                    14:20:00  ·  stdin
 
 ╭─ Ports ──────────────────────────────────────────────────────────────────────────╮
-│ USB-C 1  ●  USB2 USB3  USB3.1 Hub                                                │
+│ USB-C 1  ●  USB2 USB3  USB3.1 Hub  power-out 4.6 W                               │
 │ USB-C 2  ○                                                                       │
 │ USB-C 4  ●                         power-in 94 W ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓ │
 │ HDMI 3   ○                                                                     ┃ │
@@ -9,6 +9,7 @@
 │ ██████████████░░░░░░░░░░  57%  charging, 330 min to full                       ┃ │
 │ battery  61.2 W  ·  12.24 V × 5 A  ·  in                                       ┃ │
 │ adapter  94 W  ·  20 V × 4.7 A  ·  96W USB-C Power Adapter  ·  on USB-C 4 ◀━━━━┛ │
+│ out      4.6 W  ·  5.1 V × 0.9 A  ·  to USB-C 1                                  │
 ├─ Devices ────────────────────────────────────────────────────────────────────────┤
 │ USB3.1 Hub           GenesysLogic                 5 Gb/s    USB-C 1              │
 │ ├─ Backups, Scratch  Example Portable SSD · 1 TB  10 Gb/s                        │

@@ -40,4 +40,6 @@ must(.schemaVersion == 1; "schemaVersion is 1")
 | must(.power.adapter | . == null or ((.watts | is_int and . > 0) and (.volts | type == "number") and (.amps | type == "number") and (.description | type == "string")); "adapter is absent or has watts, volts, amps, description")
 | must(.power.battery | . == null or ((.watts | type == "number" and . > 0) and (.volts | type == "number" and . > 0) and (.amps | type == "number" and . > 0)); "battery flow is absent or has positive watts, volts, amps")
 | must(([.ports[] | select(.powerIn == true)] | length) == 0 or .power.externalConnected; "a port that feeds the machine means external power")
+| must([.ports[].powerOut | select(. != null)] | all((.watts | type == "number" and . > 0) and (.volts | type == "number" and . > 0) and (.amps | type == "number" and . > 0)); "a port's powerOut is absent or has positive watts, volts, amps")
+| must([.ports[] | select(.powerOut != null and .powerIn == true)] | length == 0; "a port does not take power in and give it out at once")
 | true

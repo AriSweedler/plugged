@@ -128,7 +128,7 @@ same loop.
 |---|---|
 | `generatedAt` | ISO 8601 with the local offset |
 | `host` | `gethostname()` |
-| `ports[]` | `id` (`Port-USB-C@3`), `kind` (`usb-c` or `hdmi`), `label`, `active`, `transports` (`USB2`, `USB3`, `DisplayPort`, `CIO`), `displayPortLinkRate` when a DisplayPort link is up, `powerIn` when the port can take power in (true only while a power contract is live on it) |
+| `ports[]` | `id` (`Port-USB-C@3`), `kind` (`usb-c` or `hdmi`), `label`, `active`, `transports` (`USB2`, `USB3`, `DisplayPort`, `CIO`), `displayPortLinkRate` when a DisplayPort link is up, `powerIn` when the port can take power in (true only while a power contract is live on it), `powerOut` (`watts`, `volts`, `amps`) while the machine powers a device through it (macOS on Apple silicon) |
 | `usb[]` | a tree of `name`, `vendor`, `vendorId`, `productId`, `revision`, `serial`, `speed` (0 low to 5 super+ 20 Gb/s), `speedLabel`, `locationId`, `containerId`, `port` (the `ports[].id` the device hangs off), `children` |
 | `displays[]` | `name`, `width`, `height` (pixels), `hz`, `builtin`, `main` |
 | `network[]` | `name` (`enp125s0u1`), `kind` (`ethernet`, `wi-fi`, `other`), `connected` (a live link), `speedMbps`, `usbLocationId` when the interface is on a USB device: the `usb[].locationId` it rides |

@@ -1,7 +1,9 @@
 use super::ioreg::{self, Entry};
-use crate::model::{Port, PortKind};
+use crate::model::{BatteryFlow, Port, PortKind};
+use std::collections::HashMap;
 
 pub fn collect() -> Vec<Port> {
+    let mut power_out = power_out_by_port();
     let mut found: Vec<(u8, i64, Port)> = Vec::new();
     ioreg::for_each_service("IOPort", |entry| {
         let p = ioreg::properties(entry);
@@ -25,6 +27,8 @@ pub fn collect() -> Vec<Port> {
             active: p.bool("ConnectionActive").unwrap_or(false),
             transports,
             display_port_link_rate: link_rate,
+            // A port taking power in is not giving it out, whatever the battery's table says.
+            power_out: power_out.remove(&number).filter(|_| power_in != Some(true)),
             power_in,
         };
         found.push((if kind == PortKind::UsbC { 0 } else { 1 }, number, port));
@@ -50,6 +54,23 @@ fn transport_rank(transport: &str) -> u8 {
         "CIO" => 3,
         _ => 9,
     }
+}
+
+// What the machine supplies out of each port, by port number: AppleSmartBattery's PowerOutDetails,
+// one dictionary per port it powers, with PortIndex (the port's number less one), AdapterVoltage
+// (mV, measured) and Current (mA). A port that supplies nothing has no entry, or one with no
+// current. Intel Macs publish no PowerOutDetails, so they report no powerOut.
+fn power_out_by_port() -> HashMap<i64, BatteryFlow> {
+    let mut out = HashMap::new();
+    ioreg::for_each_service("AppleSmartBattery", |entry| {
+        for detail in ioreg::properties(entry).dicts("PowerOutDetails") {
+            let (Some(index), Some(millivolts), Some(milliamps)) = (detail.int("PortIndex"), detail.int("AdapterVoltage"), detail.int("Current")) else { continue };
+            if let Some(flow) = BatteryFlow::from_milli(millivolts, milliamps) {
+                out.insert(index + 1, flow);
+            }
+        }
+    });
+    out
 }
 
 // The Power In feature lists candidate sources (USB-PD, Brick ID, TypeC) as children; the one

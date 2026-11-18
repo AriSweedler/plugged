@@ -19,6 +19,11 @@
       "kind": "usb-c",
       "label": "USB-C 1",
       "powerIn": false,
+      "powerOut": {
+        "amps": 0.9,
+        "volts": 5.1,
+        "watts": 4.6
+      },
       "transports": [
         "USB2",
         "USB3"
