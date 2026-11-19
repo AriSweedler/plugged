@@ -103,8 +103,8 @@ co2, the NixOS homelab machine, builds `plugged` from the dotfiles flake it take
 
 1. In the homelab's `hosts/co2`: `nix flake update dotfiles`. The `plugged` rev in its `flake.lock` unchanged → stop: the bump is not upstream yet, nothing new for co2.
 2. Commit; the push is the user's.
-3. `hosts/co2/bin/co2-remote install` (a dry run); show the user its output.
-4. Only on his yes: `hosts/co2/bin/co2-remote install --apply`.
+3. From the homelab checkout, `bin/host co2 install` (a dry run); show the user its output.
+4. Only on his yes: `bin/host co2 install --apply`.
 5. co2's SMC power data needs `modules/smc.nix` (a udev rule that opens `key_at_index` to every user). After the switch that first adds it, the rule runs only on the device's next add event: replay it once with `sudo udevadm trigger --action=add /sys/devices/platform/applesmc.768`, which the user runs or allows. Without it `plugged` on co2 reports no ports and no adapter, as before.
 
 ### Set up a machine
